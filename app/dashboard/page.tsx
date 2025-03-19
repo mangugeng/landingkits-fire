@@ -30,6 +30,7 @@ export default function Dashboard() {
   const [newPageDescription, setNewPageDescription] = useState('');
   const [newPageSlug, setNewPageSlug] = useState('');
   const [slugError, setSlugError] = useState('');
+  const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -50,6 +51,17 @@ export default function Dashboard() {
 
     return () => unsubscribe();
   }, [router]);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   const handleCreatePage = async () => {
     if (!auth.currentUser) return;

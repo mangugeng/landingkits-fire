@@ -25,7 +25,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { ComponentList } from '../../components/ComponentList';
+import ComponentList from '../../components/ComponentList';
 import { ComponentProperties } from '../../components/ComponentProperties';
 import {
   ComponentData,
@@ -118,6 +118,8 @@ export default function EditorPage() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedComponent, setSelectedComponent] = useState<ComponentData | null>(null);
   const [isEditing, setIsEditing] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  const [isPreviewMode, setIsPreviewMode] = useState(false);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -166,6 +168,23 @@ export default function EditorPage() {
 
     return () => unsubscribe();
   }, [router, params.id]);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setIsPreviewMode(false);
+    }
+  }, []);
 
   const handleDragStart = (event: DragStartEvent) => {
     const { active } = event;
@@ -286,9 +305,6 @@ export default function EditorPage() {
       if (!Array.isArray(pageData.content)) {
         pageData.content = [];
       }
-
-      console.log('Saving page with ID:', pageId);
-      console.log('Data to update:', JSON.stringify(pageData, null, 2));
 
       await updateDoc(doc(db, 'landing_pages', pageId), pageData);
       setHasUnpublishedChanges(false);
@@ -438,18 +454,22 @@ export default function EditorPage() {
 
   const handleComponentUpdate = (updatedComponent: ComponentData) => {
     if (!page) return;
-
-    const newContent = page.content.map((comp: ComponentData) => {
-      if (comp.id === updatedComponent.id) {
-        return updatedComponent;
-      }
-      return comp;
+    
+    // Update komponen dalam state
+    setPage(prev => {
+      if (!prev) return null;
+      return {
+        ...prev,
+        content: prev.content.map(component => 
+          component.id === updatedComponent.id ? updatedComponent : component
+        )
+      };
     });
 
-    setPage({
-      ...page,
-      content: newContent
-    });
+    // Update komponen yang dipilih
+    setSelectedComponent(updatedComponent);
+    
+    // Tandai ada perubahan yang belum disimpan
     setHasUnpublishedChanges(true);
   };
 
@@ -493,7 +513,7 @@ export default function EditorPage() {
                   title="Simpan"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 lg:mr-2" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM6.293 6.707a1 1 0 010-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L11 5.414V13a1 1 0 11-2 0V5.414L7.707 6.707a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                    <path d="M3 17V7a2 2 0 012-2h4l2 2h4a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2zm12-9H5v8h10V8z"/>
                   </svg>
                   <span className="hidden lg:inline">Simpan</span>
                 </button>
@@ -503,7 +523,7 @@ export default function EditorPage() {
                   title="Publish"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 lg:mr-2" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                    <path d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z"/>
                   </svg>
                   <span className="hidden lg:inline">Publish</span>
                 </button>
