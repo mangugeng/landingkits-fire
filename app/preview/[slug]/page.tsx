@@ -3,10 +3,9 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { collection, query, where, getDocs } from 'firebase/firestore';
-import { db } from '../lib/firebase';
+import { db } from '../../../lib/firebase';
 import { toast } from 'react-hot-toast';
-import { ComponentData } from '../components/EditorComponents';
-import { headers } from 'next/headers';
+import { ComponentData } from '../../../components/EditorComponents';
 
 interface LandingPage {
   id: string;
@@ -18,10 +17,9 @@ interface LandingPage {
   createdAt: string;
   lastUpdated: string;
   slug: string;
-  customDomain?: string;
 }
 
-export default function PublicPage() {
+export default function PreviewPage() {
   const params = useParams();
   const [page, setPage] = useState<LandingPage | null>(null);
   const [loading, setLoading] = useState(true);
@@ -29,54 +27,23 @@ export default function PublicPage() {
   useEffect(() => {
     const fetchPage = async () => {
       try {
-        // Mendapatkan hostname dan pathname dari window.location
-        const hostname = window.location.hostname;
-        const pathname = window.location.pathname;
-        const isSubdomain = hostname.includes('landingkits.com') && hostname !== 'www.landingkits.com';
+        const pageSlug = Array.isArray(params.slug) ? params.slug[0] : params.slug;
         
-        let pagesRef = collection(db, 'landing_pages');
-        let q;
-
-        if (isSubdomain) {
-          // Jika mengakses via subdomain
-          const subdomain = hostname.split('.')[0];
-          q = query(
-            pagesRef, 
-            where('slug', '==', subdomain),
-            where('status', '==', 'published')
-          );
-        } else {
-          // Jika mengakses via path biasa
-          const slug = Array.isArray(params.slug) ? params.slug[0] : params.slug;
-          q = query(
-            pagesRef, 
-            where('slug', '==', slug),
-            where('status', '==', 'published')
-          );
-        }
-
+        // Query berdasarkan slug
+        const q = query(
+          collection(db, 'landing_pages'),
+          where('slug', '==', pageSlug)
+        );
+        
         const querySnapshot = await getDocs(q);
         
         if (!querySnapshot.empty) {
-          const doc = querySnapshot.docs[0];
-          const data = doc.data() as LandingPage;
-          
-          // Jika mengakses via subdomain dan path tidak sesuai, redirect ke root subdomain
-          if (isSubdomain && pathname !== '/') {
-            window.location.href = `https://${data.slug}.landingkits.com`;
-            return;
-          }
-          
+          const pageDoc = querySnapshot.docs[0];
           setPage({
-            ...data,
-            id: doc.id
-          });
+            id: pageDoc.id,
+            ...pageDoc.data()
+          } as LandingPage);
         } else {
-          // Jika halaman tidak ditemukan dan mengakses via subdomain, redirect ke landingkits.com
-          if (isSubdomain) {
-            window.location.href = 'https://www.landingkits.com';
-            return;
-          }
           toast.error('Halaman tidak ditemukan');
         }
       } catch (error) {
@@ -94,19 +61,19 @@ export default function PublicPage() {
     switch (component.type) {
       case 'heading':
         return (
-          <div className="text-4xl font-bold text-gray-900 mb-4">
+          <div key={component.id} className="text-4xl font-bold text-gray-900 mb-4">
             {component.content}
           </div>
         );
       case 'paragraph':
         return (
-          <div className="text-lg text-gray-600 mb-4">
+          <div key={component.id} className="text-lg text-gray-600 mb-4">
             {component.content}
           </div>
         );
       case 'image':
         return (
-          <div className="mb-4">
+          <div key={component.id} className="mb-4">
             <img
               src={component.content}
               alt=""
@@ -116,7 +83,7 @@ export default function PublicPage() {
         );
       case 'button':
         return (
-          <div className="mb-4">
+          <div key={component.id} className="mb-4">
             <button
               className={`px-6 py-3 rounded-md text-white font-medium ${
                 component.props?.variant === 'primary'
@@ -288,37 +255,19 @@ export default function PublicPage() {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <h1 className="text-2xl font-bold text-gray-900 mb-2">Halaman Tidak Ditemukan</h1>
-          <p className="text-gray-600">Halaman yang Anda cari tidak ada atau belum dipublikasikan.</p>
+          <p className="text-gray-600">Halaman yang Anda cari tidak ada.</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
-      <div className="max-w-4xl mx-auto px-4 py-12">
-        {/* Hero Section */}
-        <div className="bg-white rounded-lg shadow-lg p-8 mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 mb-4">{page.title}</h1>
-          <p className="text-xl text-gray-600">{page.description}</p>
-        </div>
-
-        {/* Main Content */}
-        <div className="bg-white rounded-lg shadow-lg p-8">
-          {page.content.map((component, index) => (
-            <div key={component.id || index}>
-              {renderComponent(component)}
-            </div>
-          ))}
-        </div>
-
-        {/* Footer */}
-        <div className="mt-8 text-center text-sm text-gray-500">
-          Dipublikasikan pada {new Date(page.lastUpdated).toLocaleDateString('id-ID', {
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric'
-          })}
+    <div className="min-h-screen bg-white">
+      <div className="max-w-4xl mx-auto px-4 py-8">
+        <h1 className="text-3xl font-bold text-gray-900 mb-4">{page.title}</h1>
+        <p className="text-lg text-gray-600 mb-8">{page.description}</p>
+        <div className="space-y-6">
+          {page.content.map((component) => renderComponent(component))}
         </div>
       </div>
     </div>

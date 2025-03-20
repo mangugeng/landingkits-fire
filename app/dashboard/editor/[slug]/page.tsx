@@ -1,0 +1,567 @@
+'use client';
+
+import React, { useEffect, useState } from 'react';
+import { useRouter, useParams } from 'next/navigation';
+import { auth, db } from '../../../../lib/firebase';
+import { onAuthStateChanged } from 'firebase/auth';
+import { doc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { toast } from 'react-hot-toast';
+import {
+  DndContext,
+  DragEndEvent,
+  DragOverlay,
+  DragStartEvent,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import ComponentList from '../../../components/ComponentList';
+import { ComponentProperties } from '../../../components/ComponentProperties';
+import {
+  ComponentData,
+  HeadingComponent,
+  ParagraphComponent,
+  ImageComponent,
+  ButtonComponent,
+  FormComponent,
+  CTAComponent,
+  FeaturesComponent,
+  TestimonialComponent,
+  PricingComponent,
+  SpacerComponent
+} from '../../../components/EditorComponents';
+import { collection, getDocs, query, where } from 'firebase/firestore';
+
+interface LandingPage {
+  id: string;
+  title: string;
+  description: string;
+  content: ComponentData[];
+  status: 'draft' | 'published';
+  userId: string;
+  createdAt: string;
+  updatedAt?: string;
+  publishedAt: string | null;
+  slug: string;
+  hasUnpublishedChanges?: boolean;
+}
+
+// Fungsi untuk generate ID unik
+const generateId = () => {
+  return Math.random().toString(36).substring(2) + Date.now().toString(36);
+};
+
+const componentMap = {
+  heading: HeadingComponent,
+  paragraph: ParagraphComponent,
+  image: ImageComponent,
+  button: ButtonComponent,
+  form: FormComponent,
+  cta: CTAComponent,
+  features: FeaturesComponent,
+  testimonial: TestimonialComponent,
+  pricing: PricingComponent,
+  spacer: SpacerComponent
+};
+
+interface SortableComponentProps {
+  component: ComponentData;
+  index: number;
+  selectedComponent: ComponentData | null;
+  onSelect: (component: ComponentData) => void;
+}
+
+const SortableComponent = ({ component, index, selectedComponent, onSelect }: SortableComponentProps) => {
+  const Component = componentMap[component.type];
+  
+  return (
+    <div 
+      onClick={() => onSelect(component)}
+      className={`relative cursor-pointer transition-all ${
+        selectedComponent?.id === component.id ? 'ring-2 ring-blue-600 ring-opacity-100' : 'hover:ring-2 hover:ring-blue-300 hover:ring-opacity-50'
+      }`}
+    >
+      <Component content={component.content} props={component.props} />
+    </div>
+  );
+};
+
+const DroppableContainer = ({ children }: { children: React.ReactNode }) => {
+  return (
+    <div 
+      className="space-y-4 min-h-[200px] p-4 border-2 border-dashed border-gray-300 rounded-lg"
+      data-droppable-id="canvas"
+    >
+      {children}
+    </div>
+  );
+};
+
+export default function EditorPage() {
+  const router = useRouter();
+  const params = useParams();
+  const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState<LandingPage | null>(null);
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [hasUnpublishedChanges, setHasUnpublishedChanges] = useState(false);
+  const [editingComponent, setEditingComponent] = useState<ComponentData | null>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [selectedComponent, setSelectedComponent] = useState<ComponentData | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  const [isPreviewMode, setIsPreviewMode] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isPublishing, setIsPublishing] = useState(false);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  useEffect(() => {
+    const fetchPage = async () => {
+      try {
+        const pageSlug = Array.isArray(params.slug) ? params.slug[0] : params.slug;
+        const q = query(
+          collection(db, 'landing_pages'),
+          where('slug', '==', pageSlug)
+        );
+        const querySnapshot = await getDocs(q);
+        
+        if (!querySnapshot.empty) {
+          const doc = querySnapshot.docs[0];
+          const data = doc.data() as LandingPage;
+          setPage({ ...data, id: doc.id });
+        } else {
+          toast.error('Halaman tidak ditemukan');
+          router.push('/dashboard/landingpage');
+        }
+      } catch (error) {
+        console.error('Error fetching page:', error);
+        toast.error('Gagal mengambil data halaman');
+        router.push('/dashboard/landingpage');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchPage();
+  }, [router, params.slug]);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setIsPreviewMode(false);
+    }
+  }, []);
+
+  const handleDragStart = (event: DragStartEvent) => {
+    const { active } = event;
+    if (active.id.toString().startsWith('sidebar-')) {
+      const componentType = active.id.toString().replace('sidebar-', '') as ComponentData['type'];
+      handleAddComponent(componentType);
+    }
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (!over || !page) return;
+
+    if (active.id !== over.id) {
+      const oldIndex = page.content.findIndex((item) => item.id === active.id);
+      const newIndex = page.content.findIndex((item) => item.id === over.id);
+      
+      if (oldIndex !== -1 && newIndex !== -1) {
+        setPage(prev => prev ? {
+          ...prev,
+          content: arrayMove(prev.content, oldIndex, newIndex)
+        } : null);
+        setHasUnpublishedChanges(true);
+      }
+    }
+  };
+
+  const handleSave = async () => {
+    if (!page) return;
+    
+    setIsSaving(true);
+    try {
+      const pageSlug = page.slug || (Array.isArray(params.slug) ? params.slug[0] : params.slug);
+      const docRef = doc(db, 'landing_pages', page.id);
+      await updateDoc(docRef, {
+        ...page,
+        lastUpdated: serverTimestamp(),
+      });
+      toast.success('Perubahan berhasil disimpan');
+    } catch (error) {
+      console.error('Error saving page:', error);
+      toast.error('Gagal menyimpan perubahan');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handlePublish = async () => {
+    if (!page) return;
+
+    setIsPublishing(true);
+    try {
+      const pageSlug = page.slug || (Array.isArray(params.slug) ? params.slug[0] : params.slug);
+      const docRef = doc(db, 'landing_pages', page.id);
+      await updateDoc(docRef, {
+        status: 'published',
+        publishedAt: serverTimestamp(),
+      });
+      toast.success('Halaman berhasil dipublikasikan');
+      router.push('/dashboard/landingpage');
+    } catch (error) {
+      console.error('Error publishing page:', error);
+      toast.error('Gagal mempublikasikan halaman');
+    } finally {
+      setIsPublishing(false);
+    }
+  };
+
+  const handleAddComponent = (type: ComponentData['type']) => {
+    if (!page) return;
+
+    const newComponent: ComponentData = {
+      id: `comp-${Date.now()}`,
+      type,
+      content: type === 'heading' ? 'New Heading' :
+               type === 'paragraph' ? 'New paragraph text...' :
+               type === 'button' ? 'Click me' :
+               type === 'image' ? 'https://placehold.co/400x300' :
+               type === 'cta' ? 'Call to Action' :
+               '',
+      props: type === 'button' ? { variant: 'primary' } :
+             type === 'form' ? {
+               formFields: [
+                 { type: 'text', label: 'Name', placeholder: 'Enter your name', required: true },
+                 { type: 'email', label: 'Email', placeholder: 'Enter your email', required: true },
+                 { type: 'textarea', label: 'Message', placeholder: 'Enter your message', required: true }
+               ]
+             } :
+             type === 'features' ? {
+               features: [
+                 { title: 'Feature 1', description: 'Description for feature 1', icon: 'M13 10V3L4 14h7v7l9-11h-7z' },
+                 { title: 'Feature 2', description: 'Description for feature 2', icon: 'M13 10V3L4 14h7v7l9-11h-7z' },
+                 { title: 'Feature 3', description: 'Description for feature 3', icon: 'M13 10V3L4 14h7v7l9-11h-7z' }
+               ]
+             } :
+             type === 'testimonial' ? {
+               testimonials: [
+                 { name: 'John Doe', role: 'CEO', content: 'Great product!', avatar: 'https://placehold.co/100' },
+                 { name: 'Jane Smith', role: 'Designer', content: 'Amazing service!', avatar: 'https://placehold.co/100' },
+                 { name: 'Mike Johnson', role: 'Developer', content: 'Best in class!', avatar: 'https://placehold.co/100' }
+               ]
+             } :
+             type === 'pricing' ? {
+               pricingPlans: [
+                 { name: 'Basic', price: '$9', features: ['Feature 1', 'Feature 2', 'Feature 3'], ctaText: 'Get Started', ctaLink: '#', popular: false },
+                 { name: 'Pro', price: '$29', features: ['Feature 1', 'Feature 2', 'Feature 3', 'Feature 4'], ctaText: 'Get Started', ctaLink: '#', popular: true },
+                 { name: 'Enterprise', price: '$99', features: ['Feature 1', 'Feature 2', 'Feature 3', 'Feature 4', 'Feature 5'], ctaText: 'Get Started', ctaLink: '#', popular: false }
+               ]
+             } :
+             undefined
+    };
+
+    setPage(prev => prev ? {
+      ...prev,
+      content: [...(prev.content || []), newComponent]
+    } : null);
+  };
+
+  const handleEditComponent = (id: string) => {
+    console.log('Edit component clicked:', id);
+    if (!page) return;
+    const component = page.content.find(c => c.id === id);
+    console.log('Found component:', component);
+    if (component) {
+      setEditingComponent(component);
+      setIsEditModalOpen(true);
+    }
+  };
+
+  const handleDeleteComponent = (id: string) => {
+    console.log('Delete component clicked:', id);
+    if (!page) return;
+    console.log('Current page content:', page.content);
+    
+    // Hapus komponen dari content
+    setPage(prev => {
+      if (!prev) return null;
+      const newContent = prev.content.filter(c => c.id !== id);
+      console.log('New content after delete:', newContent);
+      return {
+        ...prev,
+        content: newContent
+      };
+    });
+
+    // Reset selectedComponent ke null untuk mengosongkan panel properti
+    setSelectedComponent(null);
+    
+    setHasUnpublishedChanges(true);
+  };
+
+  const handleUpdateComponent = (updatedComponent: ComponentData) => {
+    if (!page) return;
+    setPage(prev => prev ? {
+      ...prev,
+      content: prev.content.map(c => 
+        c.id === updatedComponent.id ? updatedComponent : c
+      )
+    } : null);
+    setHasUnpublishedChanges(true);
+    setIsEditModalOpen(false);
+    setEditingComponent(null);
+  };
+
+  const handleComponentSelect = (component: ComponentData) => {
+    setSelectedComponent(component);
+  };
+
+  const handleComponentUpdate = (updatedComponent: ComponentData) => {
+    if (!page) return;
+    
+    // Update komponen dalam state
+    setPage(prev => {
+      if (!prev) return null;
+      return {
+        ...prev,
+        content: prev.content.map(component => 
+          component.id === updatedComponent.id ? updatedComponent : component
+        )
+      };
+    });
+
+    // Update komponen yang dipilih
+    setSelectedComponent(updatedComponent);
+    
+    // Tandai ada perubahan yang belum disimpan
+    setHasUnpublishedChanges(true);
+  };
+
+  const handleBack = () => {
+    router.push('/dashboard/landingpage');
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen flex flex-col bg-gray-100">
+      {/* Sticky Navbar */}
+      <nav className="sticky top-0 bg-white border-b border-gray-200 z-50">
+        <div className="max-w-full mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            <div className="flex items-center gap-4">
+              <button
+                onClick={handleBack}
+                className="text-gray-600 hover:text-gray-900 flex items-center gap-1"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clipRule="evenodd" />
+                </svg>
+                <span className="hidden lg:inline">Kembali ke Dashboard</span>
+              </button>
+              <h1 className="text-xl font-semibold text-gray-900 hidden lg:block">Edit Landing Page</h1>
+            </div>
+
+            <div className="flex items-center gap-4">
+              {hasUnpublishedChanges && (
+                <span className="hidden lg:inline-block text-sm text-yellow-600 bg-yellow-50 px-3 py-1 rounded-full">
+                  Ada perubahan yang belum dipublish
+                </span>
+              )}
+              <div className="flex gap-2">
+                <button
+                  onClick={handleSave}
+                  className="flex items-center justify-center px-3 lg:px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700"
+                  title="Simpan"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 lg:mr-2" viewBox="0 0 20 20" fill="currentColor">
+                    <path d="M3 17V7a2 2 0 012-2h4l2 2h4a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2zm12-9H5v8h10V8z"/>
+                  </svg>
+                  <span className="hidden lg:inline">Simpan</span>
+                </button>
+                <button
+                  onClick={handlePublish}
+                  className="flex items-center justify-center px-3 lg:px-4 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-md"
+                  title="Publish"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 lg:mr-2" viewBox="0 0 20 20" fill="currentColor">
+                    <path d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z"/>
+                  </svg>
+                  <span className="hidden lg:inline">Publish</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </nav>
+
+      {/* Main Content */}
+      <div className="flex-1 flex">
+        {/* Left Sidebar - Component List */}
+        <div className="w-64 bg-white border-r border-gray-200 overflow-y-auto lg:block hidden">
+          <ComponentList onAddComponent={handleAddComponent} />
+        </div>
+
+        {/* Main Canvas */}
+        <div className="flex-1 overflow-y-auto">
+          <div className="max-w-4xl mx-auto p-4 lg:p-8 pb-32 lg:pb-8">
+            <div className="bg-white rounded-lg shadow-sm p-4 lg:p-8">
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragStart={handleDragStart}
+                onDragEnd={handleDragEnd}
+              >
+                <DroppableContainer>
+                  <SortableContext
+                    items={page?.content || []}
+                    strategy={verticalListSortingStrategy}
+                  >
+                    {page?.content.map((component, index) => (
+                      <SortableComponent
+                        key={component.id}
+                        component={component}
+                        index={index}
+                        selectedComponent={selectedComponent}
+                        onSelect={handleComponentSelect}
+                      />
+                    ))}
+                  </SortableContext>
+                </DroppableContainer>
+                <DragOverlay>
+                  {editingComponent && (
+                    <div className="opacity-50">
+                      {React.createElement(componentMap[editingComponent.type], {
+                        content: editingComponent.content,
+                        props: editingComponent.props
+                      })}
+                    </div>
+                  )}
+                </DragOverlay>
+              </DndContext>
+            </div>
+          </div>
+        </div>
+
+        {/* Right Sidebar */}
+        <div className="w-80 bg-white border-l border-gray-200 overflow-y-auto lg:block hidden">
+          <div className="p-4 space-y-4">
+            {/* Page Title and Description */}
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Judul Halaman
+                </label>
+                <input
+                  type="text"
+                  value={title}
+                  onChange={(e) => {
+                    setTitle(e.target.value);
+                    setHasUnpublishedChanges(true);
+                  }}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Deskripsi
+                </label>
+                <textarea
+                  value={description}
+                  onChange={(e) => {
+                    setDescription(e.target.value);
+                    setHasUnpublishedChanges(true);
+                  }}
+                  rows={3}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+            </div>
+
+            {/* Component Properties */}
+            {selectedComponent && (
+              <ComponentProperties
+                selectedComponent={selectedComponent}
+                onUpdate={handleComponentUpdate}
+                onDelete={handleDeleteComponent}
+              />
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Mobile: Bottom Component List */}
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 z-40">
+        <div className="overflow-x-auto">
+          <div className="flex space-x-4 pb-2">
+            <ComponentList onAddComponent={handleAddComponent} isMobile={true} />
+          </div>
+        </div>
+      </div>
+
+      {/* Mobile: Properties Panel Dialog */}
+      {selectedComponent && (
+        <div className="lg:hidden fixed inset-0 bg-black bg-opacity-50 z-50">
+          <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-xl max-h-[80vh] overflow-y-auto">
+            <div className="sticky top-0 bg-white border-b border-gray-200 p-4 flex justify-between items-center">
+              <h3 className="text-lg font-medium">Properties</h3>
+              <button 
+                onClick={() => setSelectedComponent(null)}
+                className="p-2 text-gray-500 hover:text-gray-700"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="p-4">
+              <ComponentProperties
+                selectedComponent={selectedComponent}
+                onUpdate={handleComponentUpdate}
+                onDelete={handleDeleteComponent}
+                isMobile={true}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+} 

@@ -1,73 +1,84 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
 import Link from 'next/link';
-import DashboardLayout from '../../components/dashboard/DashboardLayout';
+import DashboardLayout from '../../../components/dashboard/DashboardLayout';
+import { db } from '../../../lib/firebase';
+import { collection, getDocs, deleteDoc, doc, query, orderBy, where, updateDoc } from 'firebase/firestore';
+import { 
+  DocumentPlusIcon, 
+  PencilSquareIcon, 
+  TrashIcon,
+  EyeIcon,
+  ChartBarIcon,
+  DocumentTextIcon,
+  ClockIcon,
+  ArrowTopRightOnSquareIcon,
+  DocumentIcon,
+  CheckCircleIcon
+} from '@heroicons/react/24/outline';
+import { auth } from '../../../lib/firebase';
+import { useRouter } from 'next/navigation';
+import { onAuthStateChanged } from 'firebase/auth';
 
 interface LandingPage {
   id: string;
   title: string;
   description: string;
-  status: 'draft' | 'published';
+  status: 'published' | 'draft';
   views: number;
   conversions: number;
   lastUpdated: string;
+  createdAt: string;
+  slug: string;
 }
 
-export default function LandingPageDashboard() {
-  const [landingPages, setLandingPages] = useState<LandingPage[]>([
-    {
-      id: '1',
-      title: 'Landing Page Utama',
-      description: 'Halaman utama untuk produk kami',
-      status: 'published',
-      views: 1234,
-      conversions: 45,
-      lastUpdated: '2024-03-20'
-    },
-    {
-      id: '2',
-      title: 'Promosi Produk Baru',
-      description: 'Landing page untuk peluncuran produk baru',
-      status: 'draft',
-      views: 0,
-      conversions: 0,
-      lastUpdated: '2024-03-19'
-    }
-  ]);
+export default function DashboardLandingPage() {
+  const [landingPages, setLandingPages] = useState<LandingPage[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const router = useRouter();
 
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [newPageTitle, setNewPageTitle] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (!user) {
+        router.push('/auth');
+        return;
+      }
+      fetchLandingPages();
+    });
 
-  const handleCreatePage = async () => {
-    if (!newPageTitle.trim()) {
-      toast.error('Judul halaman tidak boleh kosong');
-      return;
-    }
+    return () => unsubscribe();
+  }, [router]);
 
-    setIsLoading(true);
+  const fetchLandingPages = async () => {
     try {
-      // Simulasi API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      const newPage: LandingPage = {
-        id: Date.now().toString(),
-        title: newPageTitle,
-        description: 'Deskripsi default',
-        status: 'draft',
-        views: 0,
-        conversions: 0,
-        lastUpdated: new Date().toISOString().split('T')[0]
-      };
+      const user = auth.currentUser;
+      if (!user) {
+        router.push('/auth');
+        return;
+      }
 
-      setLandingPages(prev => [...prev, newPage]);
-      setNewPageTitle('');
-      setIsCreateModalOpen(false);
-      toast.success('Landing page berhasil dibuat');
+      const landingPagesRef = collection(db, 'landing_pages');
+      const q = query(
+        landingPagesRef, 
+        where('userId', '==', user.uid),
+        orderBy('createdAt', 'desc')
+      );
+      const querySnapshot = await getDocs(q);
+      
+      const pages = querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        lastUpdated: doc.data().lastUpdated?.toDate?.()?.toLocaleDateString('id-ID') || new Date().toLocaleDateString('id-ID'),
+        createdAt: doc.data().createdAt?.toDate?.()?.toLocaleDateString('id-ID') || new Date().toLocaleDateString('id-ID')
+      })) as LandingPage[];
+
+      setLandingPages(pages);
     } catch (error) {
-      toast.error('Gagal membuat landing page');
+      console.error('Error fetching landing pages:', error);
+      toast.error('Gagal mengambil data landing page');
     } finally {
       setIsLoading(false);
     }
@@ -78,161 +89,136 @@ export default function LandingPageDashboard() {
       return;
     }
 
-    setIsLoading(true);
+    setIsDeleting(true);
     try {
-      // Simulasi API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      setLandingPages(prev => prev.filter(page => page.id !== id));
+      await deleteDoc(doc(db, 'landing_pages', id));
+      setLandingPages(landingPages.filter(page => page.id !== id));
       toast.success('Landing page berhasil dihapus');
     } catch (error) {
+      console.error('Error deleting landing page:', error);
       toast.error('Gagal menghapus landing page');
     } finally {
-      setIsLoading(false);
+      setIsDeleting(false);
+    }
+  };
+
+  const handleStatusChange = async (pageId: string, newStatus: 'draft' | 'published') => {
+    try {
+      const pageRef = doc(db, 'landing_pages', pageId);
+      await updateDoc(pageRef, {
+        status: newStatus,
+        lastUpdated: new Date().toISOString()
+      });
+      
+      toast.success(`Landing page berhasil diubah ke status ${newStatus === 'published' ? 'Published' : 'Draft'}`);
+      fetchLandingPages();
+    } catch (error) {
+      console.error('Error updating page status:', error);
+      toast.error('Gagal mengubah status landing page');
     }
   };
 
   return (
     <DashboardLayout>
-      {/* Header */}
-      <div className="mb-6 lg:mb-8">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="p-4 md:p-6">
+        {/* Header */}
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Landing Pages</h1>
-            <p className="mt-1 text-sm text-gray-500">
-              Kelola semua landing page Anda
-            </p>
+            <p className="text-gray-600 mt-1">Kelola semua landing page Anda</p>
           </div>
-          <button
-            onClick={() => setIsCreateModalOpen(true)}
-            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+          <Link
+            href="/dashboard/landingpage/create"
+            className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors mt-4 md:mt-0"
           >
+            <DocumentPlusIcon className="w-5 h-5 mr-2" />
             Buat Landing Page Baru
-          </button>
+          </Link>
         </div>
-      </div>
 
-      {/* Stats Overview */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-6 lg:mb-8">
-        <div className="bg-white overflow-hidden shadow rounded-lg">
-          <div className="p-5">
+        {/* Stats Overview */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          <div className="bg-white p-4 rounded-lg shadow">
             <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <svg className="h-6 w-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                </svg>
+              <div className="p-2 bg-blue-100 rounded-lg">
+                <DocumentTextIcon className="w-6 h-6 text-blue-600" />
               </div>
-              <div className="ml-5 w-0 flex-1">
-                <dl>
-                  <dt className="text-sm font-medium text-gray-500 truncate">
-                    Total Landing Pages
-                  </dt>
-                  <dd className="text-lg font-medium text-gray-900">
-                    {landingPages.length}
-                  </dd>
-                </dl>
+              <div className="ml-4">
+                <p className="text-sm text-gray-600">Total Landing Pages</p>
+                <p className="text-2xl font-semibold text-gray-900">{landingPages.length}</p>
+              </div>
+            </div>
+          </div>
+          <div className="bg-white p-4 rounded-lg shadow">
+            <div className="flex items-center">
+              <div className="p-2 bg-green-100 rounded-lg">
+                <EyeIcon className="w-6 h-6 text-green-600" />
+              </div>
+              <div className="ml-4">
+                <p className="text-sm text-gray-600">Total Views</p>
+                <p className="text-2xl font-semibold text-gray-900">
+                  {landingPages.reduce((sum, page) => sum + page.views, 0)}
+                </p>
+              </div>
+            </div>
+          </div>
+          <div className="bg-white p-4 rounded-lg shadow">
+            <div className="flex items-center">
+              <div className="p-2 bg-purple-100 rounded-lg">
+                <ChartBarIcon className="w-6 h-6 text-purple-600" />
+              </div>
+              <div className="ml-4">
+                <p className="text-sm text-gray-600">Total Conversions</p>
+                <p className="text-2xl font-semibold text-gray-900">
+                  {landingPages.reduce((sum, page) => sum + page.conversions, 0)}
+                </p>
+              </div>
+            </div>
+          </div>
+          <div className="bg-white p-4 rounded-lg shadow">
+            <div className="flex items-center">
+              <div className="p-2 bg-yellow-100 rounded-lg">
+                <ClockIcon className="w-6 h-6 text-yellow-600" />
+              </div>
+              <div className="ml-4">
+                <p className="text-sm text-gray-600">Pages Published</p>
+                <p className="text-2xl font-semibold text-gray-900">
+                  {landingPages.filter(page => page.status === 'published').length}
+                </p>
               </div>
             </div>
           </div>
         </div>
 
-        <div className="bg-white overflow-hidden shadow rounded-lg">
-          <div className="p-5">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <svg className="h-6 w-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                </svg>
-              </div>
-              <div className="ml-5 w-0 flex-1">
-                <dl>
-                  <dt className="text-sm font-medium text-gray-500 truncate">
-                    Total Views
-                  </dt>
-                  <dd className="text-lg font-medium text-gray-900">
-                    {landingPages.reduce((acc, page) => acc + page.views, 0).toLocaleString()}
-                  </dd>
-                </dl>
-              </div>
-            </div>
+        {/* Loading State */}
+        {isLoading ? (
+          <div className="flex justify-center items-center h-64">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
           </div>
-        </div>
-
-        <div className="bg-white overflow-hidden shadow rounded-lg">
-          <div className="p-5">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <svg className="h-6 w-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                </svg>
-              </div>
-              <div className="ml-5 w-0 flex-1">
-                <dl>
-                  <dt className="text-sm font-medium text-gray-500 truncate">
-                    Total Konversi
-                  </dt>
-                  <dd className="text-lg font-medium text-gray-900">
-                    {landingPages.reduce((acc, page) => acc + page.conversions, 0).toLocaleString()}
-                  </dd>
-                </dl>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white overflow-hidden shadow rounded-lg">
-          <div className="p-5">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <svg className="h-6 w-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-              <div className="ml-5 w-0 flex-1">
-                <dl>
-                  <dt className="text-sm font-medium text-gray-500 truncate">
-                    Pages Published
-                  </dt>
-                  <dd className="text-lg font-medium text-gray-900">
-                    {landingPages.filter(page => page.status === 'published').length}
-                  </dd>
-                </dl>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Recent Pages */}
-      <div className="bg-white shadow rounded-lg">
-        <div className="px-4 lg:px-6 py-4 border-b border-gray-200">
-          <h2 className="text-lg font-medium text-gray-900">Landing Pages Terbaru</h2>
-        </div>
-        <div className="p-4 lg:p-6">
-          {/* Desktop Table */}
-          <div className="hidden md:block">
-            <div className="overflow-x-auto">
+        ) : (
+          <>
+            {/* Desktop Table */}
+            <div className="hidden md:block bg-white rounded-lg shadow overflow-hidden">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Judul
                     </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Status
                     </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Views
                     </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Konversi
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Conversions
                     </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Terakhir Diupdate
                     </th>
-                    <th scope="col" className="relative px-6 py-3">
-                      <span className="sr-only">Aksi</span>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Aksi
                     </th>
                   </tr>
                 </thead>
@@ -245,125 +231,158 @@ export default function LandingPageDashboard() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                          page.status === 'published' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
+                          page.status === 'published' 
+                            ? 'bg-green-100 text-green-800' 
+                            : 'bg-yellow-100 text-yellow-800'
                         }`}>
                           {page.status === 'published' ? 'Published' : 'Draft'}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {page.views.toLocaleString()}
+                        {page.views}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {page.conversions.toLocaleString()}
+                        {page.conversions}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {new Date(page.lastUpdated).toLocaleDateString('id-ID')}
+                        {page.lastUpdated}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <Link href={`/landing/${page.id}/edit`} className="text-blue-600 hover:text-blue-900 mr-4">
-                          Edit
-                        </Link>
-                        <button
-                          onClick={() => handleDeletePage(page.id)}
-                          className="text-red-600 hover:text-red-900"
-                        >
-                          Hapus
-                        </button>
+                        <div className="flex justify-end space-x-3">
+                          <Link
+                            href={`/dashboard/editor/${page.slug}`}
+                            className="text-blue-600 hover:text-blue-900"
+                            title="Edit"
+                          >
+                            <PencilSquareIcon className="w-5 h-5" />
+                          </Link>
+                          <Link
+                            href={`/preview/${page.slug}`}
+                            className="text-purple-600 hover:text-purple-900"
+                            title="Preview"
+                          >
+                            <EyeIcon className="w-5 h-5" />
+                          </Link>
+                          <Link
+                            href={`/${page.slug}`}
+                            target="_blank"
+                            className="text-green-600 hover:text-green-900"
+                            title="Live View"
+                          >
+                            <ArrowTopRightOnSquareIcon className="w-5 h-5" />
+                          </Link>
+                          <button
+                            onClick={() => handleStatusChange(page.id, page.status === 'published' ? 'draft' : 'published')}
+                            className={`${
+                              page.status === 'published' 
+                                ? 'text-yellow-600 hover:text-yellow-900' 
+                                : 'text-green-600 hover:text-green-900'
+                            }`}
+                            title={page.status === 'published' ? 'Set as Draft' : 'Publish'}
+                          >
+                            {page.status === 'published' ? (
+                              <DocumentIcon className="w-5 h-5" />
+                            ) : (
+                              <CheckCircleIcon className="w-5 h-5" />
+                            )}
+                          </button>
+                          <button
+                            onClick={() => handleDeletePage(page.id)}
+                            disabled={isDeleting}
+                            className="text-red-600 hover:text-red-900 disabled:opacity-50"
+                            title="Delete"
+                          >
+                            <TrashIcon className="w-5 h-5" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
-          </div>
 
-          {/* Mobile Cards */}
-          <div className="md:hidden space-y-4">
-            {landingPages.map((page) => (
-              <div key={page.id} className="bg-white shadow rounded-lg p-4">
-                <div className="flex justify-between items-start">
-                  <div>
+            {/* Mobile Cards */}
+            <div className="md:hidden space-y-4">
+              {landingPages.map((page) => (
+                <div key={page.id} className="bg-white rounded-lg shadow p-4">
+                  <div className="flex justify-between items-start mb-2">
                     <h3 className="text-lg font-medium text-gray-900">{page.title}</h3>
-                    <p className="text-sm text-gray-500 mt-1">{page.description}</p>
-                  </div>
-                  <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
-                    page.status === 'published' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
-                  }`}>
-                    {page.status === 'published' ? 'Published' : 'Draft'}
-                  </span>
-                </div>
-                <div className="mt-4 grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <span className="text-gray-500">Views:</span>
-                    <span className="ml-2 font-medium">{page.views.toLocaleString()}</span>
-                  </div>
-                  <div>
-                    <span className="text-gray-500">Konversi:</span>
-                    <span className="ml-2 font-medium">{page.conversions.toLocaleString()}</span>
-                  </div>
-                  <div className="col-span-2">
-                    <span className="text-gray-500">Terakhir Diupdate:</span>
-                    <span className="ml-2 font-medium">
-                      {new Date(page.lastUpdated).toLocaleDateString('id-ID')}
+                    <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
+                      page.status === 'published' 
+                        ? 'bg-green-100 text-green-800' 
+                        : 'bg-yellow-100 text-yellow-800'
+                    }`}>
+                      {page.status === 'published' ? 'Published' : 'Draft'}
                     </span>
                   </div>
+                  <p className="text-sm text-gray-600 mb-4">{page.description}</p>
+                  <div className="grid grid-cols-2 gap-4 mb-4">
+                    <div>
+                      <p className="text-xs text-gray-500">Views</p>
+                      <p className="text-sm font-medium text-gray-900">{page.views}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500">Conversions</p>
+                      <p className="text-sm font-medium text-gray-900">{page.conversions}</p>
+                    </div>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <p className="text-xs text-gray-500">Last updated: {page.lastUpdated}</p>
+                    <div className="flex space-x-3">
+                      <Link
+                        href={`/dashboard/editor/${page.slug}`}
+                        className="text-blue-600 hover:text-blue-900"
+                        title="Edit"
+                      >
+                        <PencilSquareIcon className="w-5 h-5" />
+                      </Link>
+                      <Link
+                        href={`/preview/${page.slug}`}
+                        className="text-purple-600 hover:text-purple-900"
+                        title="Preview"
+                      >
+                        <EyeIcon className="w-5 h-5" />
+                      </Link>
+                      <Link
+                        href={`/${page.slug}`}
+                        target="_blank"
+                        className="text-green-600 hover:text-green-900"
+                        title="Live View"
+                      >
+                        <ArrowTopRightOnSquareIcon className="w-5 h-5" />
+                      </Link>
+                      <button
+                        onClick={() => handleStatusChange(page.id, page.status === 'published' ? 'draft' : 'published')}
+                        className={`${
+                          page.status === 'published' 
+                            ? 'text-yellow-600 hover:text-yellow-900' 
+                            : 'text-green-600 hover:text-green-900'
+                        }`}
+                        title={page.status === 'published' ? 'Set as Draft' : 'Publish'}
+                      >
+                        {page.status === 'published' ? (
+                          <DocumentIcon className="w-5 h-5" />
+                        ) : (
+                          <CheckCircleIcon className="w-5 h-5" />
+                        )}
+                      </button>
+                      <button
+                        onClick={() => handleDeletePage(page.id)}
+                        disabled={isDeleting}
+                        className="text-red-600 hover:text-red-900 disabled:opacity-50"
+                        title="Delete"
+                      >
+                        <TrashIcon className="w-5 h-5" />
+                      </button>
+                    </div>
+                  </div>
                 </div>
-                <div className="mt-4 flex justify-end space-x-3">
-                  <Link
-                    href={`/landing/${page.id}/edit`}
-                    className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md text-blue-700 bg-blue-100 hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                  >
-                    Edit
-                  </Link>
-                  <button
-                    onClick={() => handleDeletePage(page.id)}
-                    className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md text-red-700 bg-red-100 hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
-                  >
-                    Hapus
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+              ))}
+            </div>
+          </>
+        )}
       </div>
-
-      {/* Create Modal */}
-      {isCreateModalOpen && (
-        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg max-w-md w-full p-6">
-            <h2 className="text-lg font-medium text-gray-900 mb-4">Buat Landing Page Baru</h2>
-            <div className="mb-4">
-              <label htmlFor="page-title" className="block text-sm font-medium text-gray-700">
-                Judul Landing Page
-              </label>
-              <input
-                type="text"
-                id="page-title"
-                value={newPageTitle}
-                onChange={(e) => setNewPageTitle(e.target.value)}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-                placeholder="Masukkan judul landing page"
-              />
-            </div>
-            <div className="flex justify-end space-x-3">
-              <button
-                onClick={() => setIsCreateModalOpen(false)}
-                className="inline-flex justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-              >
-                Batal
-              </button>
-              <button
-                onClick={handleCreatePage}
-                disabled={isLoading}
-                className="inline-flex justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50"
-              >
-                {isLoading ? 'Membuat...' : 'Buat'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </DashboardLayout>
   );
-} 
+}

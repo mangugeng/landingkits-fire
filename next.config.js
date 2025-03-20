@@ -27,6 +27,35 @@ const nextConfig = {
             },
         ],
     },
+    async rewrites() {
+        return {
+            beforeFiles: [
+                {
+                    source: '/:path*',
+                    has: [
+                        {
+                            type: 'host',
+                            value: '(?<subdomain>[^.]+).landingkits.com',
+                        },
+                    ],
+                    destination: '/:path*',
+                },
+            ],
+        }
+    },
+    async headers() {
+        return [
+            {
+                source: '/:path*',
+                headers: [
+                    {
+                        key: 'Access-Control-Allow-Origin',
+                        value: '*.landingkits.com',
+                    },
+                ],
+            },
+        ]
+    },
 }
 
 module.exports = nextConfig 

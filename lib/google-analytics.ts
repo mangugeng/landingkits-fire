@@ -1,12 +1,16 @@
 import { BetaAnalyticsDataClient } from '@google-analytics/data';
 
+// Validasi environment variables
+if (!process.env.GOOGLE_ANALYTICS_CLIENT_EMAIL || !process.env.GOOGLE_ANALYTICS_PRIVATE_KEY) {
+  throw new Error('Missing Google Analytics environment variables');
+}
+
 // Inisialisasi client Google Analytics
 const analyticsDataClient = new BetaAnalyticsDataClient({
   credentials: {
     client_email: process.env.GOOGLE_ANALYTICS_CLIENT_EMAIL,
     private_key: process.env.GOOGLE_ANALYTICS_PRIVATE_KEY?.replace(/\\n/g, '\n'),
   },
-  projectId: process.env.GOOGLE_ANALYTICS_PROJECT_ID,
 });
 
 // Data dummy untuk development
@@ -37,7 +41,14 @@ const dummyData = [
   }
 ];
 
-export async function getAnalyticsData(startDate: string, endDate: string) {
+export async function getAnalyticsData(): Promise<Array<{
+  date: string;
+  visitors: number;
+  pageViews: number;
+  bounceRate: number;
+  avgSessionDuration: number;
+  conversionRate: number;
+}>> {
   try {
     const propertyId = process.env.GOOGLE_ANALYTICS_PROPERTY_ID;
     if (!propertyId) {
@@ -55,8 +66,8 @@ export async function getAnalyticsData(startDate: string, endDate: string) {
       property: `properties/${propertyId}`,
       dateRanges: [
         {
-          startDate,
-          endDate,
+          startDate: '7daysAgo',
+          endDate: 'today',
         },
       ],
       dimensions: [

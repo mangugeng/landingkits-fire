@@ -1,146 +1,169 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { auth, db } from '../lib/firebase';
+import { collection, query, where, getDocs, orderBy, limit } from 'firebase/firestore';
+import { onAuthStateChanged } from 'firebase/auth';
 import DashboardLayout from '../components/dashboard/DashboardLayout';
-import { 
-  DocumentTextIcon, 
-  EyeIcon, 
-  ArrowTrendingUpIcon, 
-  CheckCircleIcon 
-} from '@heroicons/react/24/outline';
+import { toast } from 'react-hot-toast';
 
-interface StatCard {
+interface LandingPage {
+  id: string;
   title: string;
-  value: string | number;
-  icon: any;
-  bgColor: string;
-  textColor: string;
+  description: string;
+  status: 'draft' | 'published';
+  views: number;
+  conversions: number;
+  createdAt: string;
+  lastUpdated: string;
+  slug: string;
 }
 
 export default function DashboardPage() {
-  const stats: StatCard[] = [
-    {
-      title: 'Total Landing Page',
-      value: '12',
-      icon: DocumentTextIcon,
-      bgColor: 'bg-blue-50',
-      textColor: 'text-blue-600'
-    },
-    {
-      title: 'Halaman Aktif',
-      value: '8',
-      icon: CheckCircleIcon,
-      bgColor: 'bg-green-50',
-      textColor: 'text-green-600'
-    },
-    {
-      title: 'Total Views',
-      value: '15,000',
-      icon: EyeIcon,
-      bgColor: 'bg-purple-50',
-      textColor: 'text-purple-600'
-    },
-    {
-      title: 'Total Konversi',
-      value: '450',
-      icon: ArrowTrendingUpIcon,
-      bgColor: 'bg-yellow-50',
-      textColor: 'text-yellow-600'
-    }
-  ];
+  const router = useRouter();
+  const [landingPages, setLandingPages] = useState<LandingPage[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const recentPages = [
-    {
-      title: 'Landing Page Produk A',
-      status: 'Published',
-      lastUpdated: '20 Maret 2024',
-      views: '1,200',
-      conversions: '45'
-    },
-    {
-      title: 'Landing Page Event B',
-      status: 'Draft',
-      lastUpdated: '19 Maret 2024',
-      views: '0',
-      conversions: '0'
-    }
-  ];
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        router.push('/auth');
+        return;
+      }
+
+      try {
+        const landingPagesRef = collection(db, 'landing_pages');
+        const q = query(
+          landingPagesRef,
+          where('userId', '==', user.uid),
+          orderBy('createdAt', 'desc'),
+          limit(5)
+        );
+        
+        const querySnapshot = await getDocs(q);
+        const pages = querySnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+          createdAt: doc.data().createdAt?.toDate?.()?.toLocaleDateString('id-ID') || new Date().toLocaleDateString('id-ID'),
+          lastUpdated: doc.data().lastUpdated?.toDate?.()?.toLocaleDateString('id-ID') || new Date().toLocaleDateString('id-ID')
+        })) as LandingPage[];
+
+        setLandingPages(pages);
+      } catch (error) {
+        console.error('Error fetching landing pages:', error);
+        toast.error('Gagal mengambil data landing page');
+      } finally {
+        setIsLoading(false);
+      }
+    });
+
+    return () => unsubscribe();
+  }, [router]);
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-semibold text-gray-900">Dashboard</h1>
-          <p className="mt-1 text-sm text-gray-500">
-            Ringkasan performa landing page Anda
-          </p>
-        </div>
+      <div className="p-4 md:p-6">
+        <div className="max-w-7xl mx-auto">
+          <div className="mb-6">
+            <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
+            <p className="text-gray-600 mt-1">Selamat datang di dashboard Anda</p>
+          </div>
 
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {stats.map((stat, index) => (
-            <div
-              key={index}
-              className={`${stat.bgColor} rounded-lg p-6 space-y-2`}
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  <stat.icon className={`h-6 w-6 ${stat.textColor}`} />
-                  <h3 className="text-sm font-medium text-gray-900">{stat.title}</h3>
-                </div>
-              </div>
-              <p className={`text-2xl font-semibold ${stat.textColor}`}>
-                {stat.value}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            <div className="bg-white p-4 rounded-lg shadow">
+              <h3 className="text-sm font-medium text-gray-500">Total Landing Page</h3>
+              <p className="mt-2 text-3xl font-semibold text-gray-900">{landingPages.length}</p>
+            </div>
+            <div className="bg-white p-4 rounded-lg shadow">
+              <h3 className="text-sm font-medium text-gray-500">Total Views</h3>
+              <p className="mt-2 text-3xl font-semibold text-gray-900">
+                {landingPages.reduce((acc, page) => acc + page.views, 0)}
               </p>
             </div>
-          ))}
-        </div>
-
-        {/* Recent Landing Pages */}
-        <div className="bg-white rounded-lg shadow">
-          <div className="px-6 py-5 border-b border-gray-200">
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-medium text-gray-900">
-                Landing Page Terbaru
-              </h2>
-              <button className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700">
-                + Buat Baru
-              </button>
+            <div className="bg-white p-4 rounded-lg shadow">
+              <h3 className="text-sm font-medium text-gray-500">Total Conversions</h3>
+              <p className="mt-2 text-3xl font-semibold text-gray-900">
+                {landingPages.reduce((acc, page) => acc + page.conversions, 0)}
+              </p>
+            </div>
+            <div className="bg-white p-4 rounded-lg shadow">
+              <h3 className="text-sm font-medium text-gray-500">Conversion Rate</h3>
+              <p className="mt-2 text-3xl font-semibold text-gray-900">
+                {landingPages.reduce((acc, page) => acc + page.views, 0) > 0
+                  ? `${((landingPages.reduce((acc, page) => acc + page.conversions, 0) / 
+                      landingPages.reduce((acc, page) => acc + page.views, 0)) * 100).toFixed(1)}%`
+                  : '0%'}
+              </p>
             </div>
           </div>
-          <div className="divide-y divide-gray-200">
-            {recentPages.map((page, index) => (
-              <div key={index} className="px-6 py-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex-1 min-w-0">
-                    <h3 className="text-sm font-medium text-gray-900">
-                      {page.title}
-                    </h3>
-                    <div className="mt-1 flex items-center space-x-2 text-sm text-gray-500">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        page.status === 'Published' 
-                          ? 'bg-green-100 text-green-800' 
-                          : 'bg-yellow-100 text-yellow-800'
-                      }`}>
-                        {page.status}
-                      </span>
-                      <span>•</span>
-                      <span>Diupdate {page.lastUpdated}</span>
-                    </div>
-                  </div>
-                  <div className="flex items-center space-x-8 text-sm text-gray-500">
-                    <div className="flex items-center space-x-2">
-                      <EyeIcon className="h-5 w-5" />
-                      <span>{page.views}</span>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <ArrowTrendingUpIcon className="h-5 w-5" />
-                      <span>{page.conversions}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
+
+          <div className="bg-white rounded-lg shadow">
+            <div className="p-4 border-b border-gray-200">
+              <h2 className="text-lg font-medium text-gray-900">Landing Pages</h2>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Judul
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Status
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Views
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Conversions
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Dibuat
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Aksi
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {landingPages.map((page) => (
+                    <tr key={page.id}>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm font-medium text-gray-900">{page.title}</div>
+                        <div className="text-sm text-gray-500">{page.description}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                          page.status === 'published' 
+                            ? 'bg-green-100 text-green-800' 
+                            : 'bg-yellow-100 text-yellow-800'
+                        }`}>
+                          {page.status === 'published' ? 'Published' : 'Draft'}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {page.views}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {page.conversions}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {page.createdAt}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                        <button
+                          onClick={() => router.push(`/dashboard/editor/${page.id}`)}
+                          className="text-blue-600 hover:text-blue-900"
+                        >
+                          Edit
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       </div>

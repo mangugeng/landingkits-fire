@@ -110,6 +110,8 @@ export default function EditorPage() {
   const router = useRouter();
   const params = useParams();
   const [loading, setLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isPublishing, setIsPublishing] = useState(false);
   const [page, setPage] = useState<LandingPage | null>(null);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -129,45 +131,32 @@ export default function EditorPage() {
   );
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (!user) {
-        router.push('/auth');
-        return;
-      }
-
+    const fetchPage = async () => {
       try {
-        const pageId = Array.isArray(params.id) ? params.id[0] : params.id;
-        const docRef = doc(db, 'landing_pages', pageId);
-        const docSnap = await getDoc(docRef);
+        const pageId = Array.isArray(params.slug) ? params.slug[0] : params.slug;
+        const pageRef = doc(db, 'landing_pages', pageId);
+        const pageDoc = await getDoc(pageRef);
         
-        if (docSnap.exists()) {
-          const data = docSnap.data() as LandingPage;
-          if (data.userId !== user.uid) {
-            router.push('/dashboard');
-            return;
-          }
+        if (pageDoc.exists()) {
+          const data = pageDoc.data();
           setPage({
-            ...data,
-            content: Array.isArray(data.content) ? data.content : []
-          });
-          setTitle(data.title);
-          setDescription(data.description);
-          setHasUnpublishedChanges(data.hasUnpublishedChanges || false);
+            id: pageDoc.id,
+            ...data
+          } as LandingPage);
         } else {
-          router.push('/dashboard');
-          return;
+          toast.error('Halaman tidak ditemukan');
+          router.push('/dashboard/landingpage');
         }
       } catch (error) {
         console.error('Error fetching page:', error);
-        router.push('/dashboard');
-        return;
+        toast.error('Gagal mengambil data landing page');
+      } finally {
+        setLoading(false);
       }
+    };
 
-      setLoading(false);
-    });
-
-    return () => unsubscribe();
-  }, [router, params.id]);
+    fetchPage();
+  }, [router, params.slug]);
 
   useEffect(() => {
     const checkMobile = () => {
@@ -214,16 +203,13 @@ export default function EditorPage() {
   };
 
   const handleSave = async () => {
+    if (!page) return;
+
     try {
-      if (!page) return;
-
-      const pageId = page.id || (Array.isArray(params.id) ? params.id[0] : params.id);
-      if (!pageId) {
-        console.error('Page ID not available');
-        toast.error('ID halaman tidak tersedia');
-        return;
-      }
-
+      setIsSaving(true);
+      const pageId = page.id || (Array.isArray(params.slug) ? params.slug[0] : params.slug);
+      const pageRef = doc(db, 'landing_pages', pageId);
+      
       // Pastikan semua field terdefinisi dengan nilai default
       const pageData = {
         id: pageId,
@@ -306,29 +292,26 @@ export default function EditorPage() {
         pageData.content = [];
       }
 
-      await updateDoc(doc(db, 'landing_pages', pageId), pageData);
+      await updateDoc(pageRef, pageData);
       setHasUnpublishedChanges(false);
       toast.success('Perubahan berhasil disimpan');
     } catch (error) {
       console.error('Error saving page:', error);
       toast.error('Gagal menyimpan perubahan');
+    } finally {
+      setIsSaving(false);
     }
   };
 
   const handlePublish = async () => {
-    if (!auth.currentUser) return;
+    if (!page) return;
 
     try {
-      const pageId = page?.id || (Array.isArray(params.id) ? params.id[0] : params.id);
-      if (!pageId) {
-        console.error('Page ID not available');
-        toast.error('ID halaman tidak tersedia');
-        return;
-      }
-
-      console.log('Publishing page with ID:', pageId);
+      setIsPublishing(true);
+      const pageId = page?.id || (Array.isArray(params.slug) ? params.slug[0] : params.slug);
       const pageRef = doc(db, 'landing_pages', pageId);
       
+      console.log('Publishing page with ID:', pageId);
       const updateData = {
         status: 'published' as const,
         publishedAt: new Date().toISOString(),
@@ -349,6 +332,8 @@ export default function EditorPage() {
     } catch (error) {
       console.error('Error publishing page:', error);
       toast.error('Gagal mempublikasikan halaman');
+    } finally {
+      setIsPublishing(false);
     }
   };
 

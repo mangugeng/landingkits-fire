@@ -7,10 +7,238 @@ import { getLatestPosts } from './lib/blog';
 import { useState, useEffect } from 'react';
 import { BlogPost } from './types/blog';
 import { FiArrowRight } from 'react-icons/fi';
+import { collection, query, where, getDocs } from 'firebase/firestore';
+import { db } from './lib/firebase';
+import { toast } from 'react-hot-toast';
+import { ComponentData } from './components/EditorComponents';
 
-export default function Home() {
+interface LandingPage {
+  id: string;
+  title: string;
+  description: string;
+  content: ComponentData[];
+  status: 'draft' | 'published';
+  userId: string;
+  createdAt: string;
+  lastUpdated: string;
+  slug: string;
+  customDomain?: string;
+}
+
+const renderComponent = (component: ComponentData) => {
+  switch (component.type) {
+    case 'heading':
+      return (
+        <div className="text-4xl font-bold text-gray-900 mb-4">
+          {component.content}
+        </div>
+      );
+    case 'paragraph':
+      return (
+        <div className="text-lg text-gray-600 mb-4">
+          {component.content}
+        </div>
+      );
+    case 'image':
+      return (
+        <div className="mb-4">
+          <img
+            src={component.content}
+            alt=""
+            className="w-full h-auto rounded-lg"
+          />
+        </div>
+      );
+    case 'button':
+      return (
+        <div className="mb-4">
+          <button
+            className={`px-6 py-3 rounded-md text-white font-medium ${
+              component.props?.variant === 'primary'
+                ? 'bg-blue-600 hover:bg-blue-700'
+                : 'bg-gray-600 hover:bg-gray-700'
+            }`}
+          >
+            {component.content}
+          </button>
+        </div>
+      );
+    case 'form':
+      return (
+        <div className="mb-4 p-6 bg-gray-50 rounded-lg">
+          <form className="space-y-4">
+            {component.props?.formFields?.map((field, index) => (
+              <div key={index}>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  {field.label}
+                </label>
+                {field.type === 'textarea' ? (
+                  <textarea
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                    placeholder={field.placeholder}
+                    required={field.required}
+                  />
+                ) : (
+                  <input
+                    type={field.type}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                    placeholder={field.placeholder}
+                    required={field.required}
+                  />
+                )}
+              </div>
+            ))}
+            <button
+              type="submit"
+              className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+            >
+              Submit
+            </button>
+          </form>
+        </div>
+      );
+    case 'cta':
+      return (
+        <div className="mb-4 p-8 bg-blue-600 text-white rounded-lg text-center">
+          <h3 className="text-2xl font-bold mb-2">{component.content}</h3>
+          <button className="mt-4 px-6 py-2 bg-white text-blue-600 rounded-md hover:bg-gray-100">
+            Get Started
+          </button>
+        </div>
+      );
+    case 'features':
+      return (
+        <div className="mb-4 grid grid-cols-1 md:grid-cols-3 gap-6">
+          {component.props?.features?.map((feature, index) => (
+            <div key={index} className="p-6 bg-white rounded-lg shadow">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-8 w-8 text-blue-600 mb-4"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d={feature.icon}
+                />
+              </svg>
+              <h3 className="text-xl font-semibold mb-2">{feature.title}</h3>
+              <p className="text-gray-600">{feature.description}</p>
+            </div>
+          ))}
+        </div>
+      );
+    case 'testimonial':
+      return (
+        <div className="mb-4 grid grid-cols-1 md:grid-cols-3 gap-6">
+          {component.props?.testimonials?.map((testimonial, index) => (
+            <div key={index} className="p-6 bg-white rounded-lg shadow">
+              <img
+                src={testimonial.avatar}
+                alt={testimonial.name}
+                className="w-16 h-16 rounded-full mx-auto mb-4"
+              />
+              <p className="text-gray-600 mb-2">{testimonial.content}</p>
+              <div className="text-center">
+                <p className="font-semibold">{testimonial.name}</p>
+                <p className="text-sm text-gray-500">{testimonial.role}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      );
+    case 'pricing':
+      return (
+        <div className="mb-4 grid grid-cols-1 md:grid-cols-3 gap-6">
+          {component.props?.pricingPlans?.map((plan, index) => (
+            <div
+              key={index}
+              className={`p-6 rounded-lg ${
+                plan.popular
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-white text-gray-900'
+              }`}
+            >
+              <h3 className="text-xl font-semibold mb-2">{plan.name}</h3>
+              <p className="text-3xl font-bold mb-4">{plan.price}</p>
+              <ul className="space-y-2 mb-6">
+                {plan.features.map((feature, i) => (
+                  <li key={i} className="flex items-center">
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      className="h-5 w-5 mr-2"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M5 13l4 4L19 7"
+                      />
+                    </svg>
+                    {feature}
+                  </li>
+                ))}
+              </ul>
+              <button className="w-full px-4 py-2 bg-white text-blue-600 rounded-md hover:bg-gray-100">
+                {plan.ctaText}
+              </button>
+            </div>
+          ))}
+        </div>
+      );
+    default:
+      return null;
+  }
+};
+
+export default function RootPage() {
   const [posts, setPosts] = useState<BlogPost[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [pageData, setPageData] = useState<LandingPage | null>(null);
+  const [isSubdomain, setIsSubdomain] = useState(false);
+
+  useEffect(() => {
+    const handleSubdomain = async () => {
+      try {
+        const hostname = window.location.hostname;
+        const isSubdomain = hostname.includes('landingkits.com') && hostname !== 'www.landingkits.com';
+
+        if (isSubdomain) {
+          setIsSubdomain(true);
+          const subdomain = hostname.split('.')[0];
+          const pagesRef = collection(db, 'landing_pages');
+          const q = query(
+            pagesRef,
+            where('slug', '==', subdomain),
+            where('status', '==', 'published')
+          );
+
+          const querySnapshot = await getDocs(q);
+          if (!querySnapshot.empty) {
+            const doc = querySnapshot.docs[0];
+            setPageData({
+              id: doc.id,
+              ...doc.data()
+            } as LandingPage);
+          } else {
+            // Halaman tidak ditemukan, redirect ke www
+            window.location.href = 'https://www.landingkits.com';
+          }
+        }
+      } catch (error) {
+        console.error('Error handling subdomain:', error);
+        toast.error('Terjadi kesalahan');
+      }
+    };
+
+    handleSubdomain();
+  }, []);
 
   useEffect(() => {
     const fetchPosts = async () => {
@@ -27,6 +255,23 @@ export default function Home() {
     fetchPosts();
   }, []);
 
+  // Jika ini adalah subdomain dan data halaman ditemukan, tampilkan konten landing page
+  if (isSubdomain && pageData) {
+    return (
+      <div className="min-h-screen">
+        {/* Render konten landing page dari pageData */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+          {pageData.content.map((component, index) => (
+            <div key={index}>
+              {renderComponent(component)}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // Jika bukan subdomain, tampilkan halaman utama
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
       {/* Hero Section */}
@@ -34,7 +279,7 @@ export default function Home() {
         <div className="text-center">
           <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold text-gray-900 mb-6">
             Buat Landing Page Menarik dalam Hitungan Menit
-          </h1>
+        </h1>
           <p className="text-xl text-gray-600 mb-8 max-w-3xl mx-auto">
             Platform all-in-one untuk membuat landing page profesional dengan mudah. 
             Drag & drop, template premium, dan analitik lengkap dalam satu tempat.
