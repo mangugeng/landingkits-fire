@@ -1,21 +1,34 @@
-import { initializeApp } from 'firebase/app';
+import { initializeApp, getApps } from 'firebase/app';
 import { getFirestore } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
+import { getAnalytics } from 'firebase/analytics';
 
+// Your web app's Firebase configuration
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID
+  apiKey: "AIzaSyAwufH3J-mnF8kfwSgIlEuzyrbf38Cwp-0",
+  authDomain: "landingkits.firebaseapp.com",
+  projectId: "landingkits",
+  storageBucket: "landingkits.firebasestorage.app",
+  messagingSenderId: "983038900293",
+  appId: "1:983038900293:web:bd97b09155ba48251f4b2c",
+  measurementId: "G-1FH6JG9DGJ"
 };
 
 // Initialize Firebase
-const app = initializeApp(firebaseConfig);
+const app = !getApps().length ? initializeApp(firebaseConfig) : getApps()[0];
+
+// Initialize Analytics
+let analytics;
+if (typeof window !== 'undefined') {
+  analytics = getAnalytics(app);
+}
 
 // Initialize Firestore
 export const db = getFirestore(app);
 
 // Initialize Auth
-export const auth = getAuth(app); 
+export const auth = getAuth(app);
+
+// Export analytics
+export { analytics }; 

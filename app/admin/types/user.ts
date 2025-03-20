@@ -3,21 +3,15 @@ export interface User {
   name: string;
   email: string;
   role: 'admin' | 'user';
-  status: 'active' | 'inactive';
   createdAt: string;
-  lastLogin: string;
-  subscription: {
-    plan: 'starter' | 'professional' | 'premium' | 'enterprise';
-    status: 'active' | 'expired' | 'cancelled';
-    startDate: string;
-    endDate: string;
-    features: string[];
-  };
+  updatedAt: string;
+  lastLogin?: string;
+  status: 'active' | 'inactive';
 }
 
 export interface UserFormData {
   name: string;
   email: string;
-  role: 'user' | 'admin' | 'superadmin' | 'tenant' | 'customer_service';
+  role: 'admin' | 'user';
   status: 'active' | 'inactive';
 } 

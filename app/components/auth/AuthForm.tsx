@@ -13,6 +13,7 @@ import {
 } from 'firebase/auth';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
+import Cookies from 'js-cookie';
 
 export default function AuthForm() {
   const [email, setEmail] = useState('');
@@ -123,12 +124,43 @@ export default function AuthForm() {
         // Jika email sudah diverifikasi, simpan data ke Firestore jika belum ada
         await saveUserToFirestore(user);
         
+        // Set cookie untuk menandakan user sudah login
+        Cookies.set('user_login', 'true', { expires: 7 }); // Cookie berlaku 7 hari
+        
         // Redirect ke dashboard
         router.push('/dashboard');
       }
     } catch (error: any) {
       console.error('Authentication error:', error);
-      setError(error.message);
+      let errorMessage = 'Terjadi kesalahan saat autentikasi.';
+      
+      switch (error.code) {
+        case 'auth/email-already-in-use':
+          errorMessage = 'Email ini sudah terdaftar.';
+          break;
+        case 'auth/invalid-email':
+          errorMessage = 'Email tidak valid.';
+          break;
+        case 'auth/operation-not-allowed':
+          errorMessage = 'Operasi tidak diizinkan.';
+          break;
+        case 'auth/weak-password':
+          errorMessage = 'Password terlalu lemah.';
+          break;
+        case 'auth/user-disabled':
+          errorMessage = 'Akun ini telah dinonaktifkan.';
+          break;
+        case 'auth/user-not-found':
+          errorMessage = 'Akun tidak ditemukan.';
+          break;
+        case 'auth/wrong-password':
+          errorMessage = 'Password salah.';
+          break;
+        default:
+          errorMessage = error.message;
+      }
+      
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -148,11 +180,30 @@ export default function AuthForm() {
       // Simpan data user ke Firestore
       await saveUserToFirestore(user);
       
+      // Set cookie untuk menandakan user sudah login
+      Cookies.set('user_login', 'true', { expires: 7 }); // Cookie berlaku 7 hari
+      
       // Redirect ke dashboard
       router.push('/dashboard');
     } catch (error: any) {
       console.error('Google authentication error:', error);
-      setError(error.message);
+      let errorMessage = 'Terjadi kesalahan saat autentikasi dengan Google.';
+      
+      switch (error.code) {
+        case 'auth/popup-closed-by-user':
+          errorMessage = 'Autentikasi dibatalkan.';
+          break;
+        case 'auth/popup-blocked':
+          errorMessage = 'Pop-up diblokir oleh browser.';
+          break;
+        case 'auth/cancelled-popup-request':
+          errorMessage = 'Permintaan autentikasi dibatalkan.';
+          break;
+        default:
+          errorMessage = error.message;
+      }
+      
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -187,6 +238,7 @@ export default function AuthForm() {
             onChange={(e) => setEmail(e.target.value)}
             className="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-400"
             required
+            disabled={loading}
           />
         </div>
 
@@ -200,42 +252,54 @@ export default function AuthForm() {
             onChange={(e) => setPassword(e.target.value)}
             className="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-400"
             required
+            disabled={loading}
           />
         </div>
 
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full bg-blue-500 text-white p-2 rounded hover:bg-blue-600 disabled:opacity-50"
-        >
-          {loading ? 'Memproses...' : isSignUp ? 'Daftar' : 'Masuk'}
-        </button>
-      </form>
+        <div className="flex items-center justify-between mb-6">
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 disabled:opacity-50"
+          >
+            {loading ? 'Loading...' : isSignUp ? 'Daftar' : 'Masuk'}
+          </button>
+        </div>
 
-      <div className="mt-4">
+        <div className="relative mb-6">
+          <div className="absolute inset-0 flex items-center">
+            <div className="w-full border-t border-gray-300"></div>
+          </div>
+          <div className="relative flex justify-center text-sm">
+            <span className="px-2 bg-white text-gray-500">Atau</span>
+          </div>
+        </div>
+
         <button
+          type="button"
           onClick={handleGoogleAuth}
           disabled={loading}
-          className="w-full bg-white border border-gray-300 text-gray-700 p-2 rounded hover:bg-gray-50 disabled:opacity-50 flex items-center justify-center"
+          className="w-full flex items-center justify-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
         >
-          <img
-            src="https://www.google.com/favicon.ico"
-            alt="Google"
-            className="w-5 h-5 mr-2"
-          />
-          Lanjutkan dengan Google
+          <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
+            <path
+              fill="currentColor"
+              d="M12.545,10.239v3.821h5.445c-0.712,2.315-2.647,3.972-5.445,3.972c-3.332,0-6.033-2.701-6.033-6.032s2.701-6.032,6.033-6.032c1.498,0,2.866,0.549,3.921,1.453l2.814-2.814C17.503,2.988,15.139,2,12.545,2C7.021,2,2.543,6.477,2.543,12s4.478,10,10.002,10c8.396,0,10.249-7.85,9.426-11.748L12.545,10.239z"
+            />
+          </svg>
+          {loading ? 'Loading...' : 'Masuk dengan Google'}
         </button>
-      </div>
 
-      <p className="mt-4 text-center text-sm">
-        {isSignUp ? 'Sudah punya akun?' : 'Belum punya akun?'}{' '}
-        <button
-          onClick={() => setIsSignUp(!isSignUp)}
-          className="text-blue-500 hover:underline"
-        >
-          {isSignUp ? 'Masuk' : 'Daftar'}
-        </button>
-      </p>
+        <div className="mt-6 text-center">
+          <button
+            type="button"
+            onClick={() => setIsSignUp(!isSignUp)}
+            className="text-sm text-blue-600 hover:text-blue-800"
+          >
+            {isSignUp ? 'Sudah punya akun? Masuk' : 'Belum punya akun? Daftar'}
+          </button>
+        </div>
+      </form>
     </div>
   );
 } 

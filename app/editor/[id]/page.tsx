@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { auth, db } from '../../lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
@@ -533,41 +533,6 @@ export default function EditorPage() {
         </div>
       </nav>
 
-      {/* Page Title and Description */}
-      <div className="bg-white border-b border-gray-200">
-        <div className="max-w-full mx-auto px-4 sm:px-6 lg:px-8 py-4 space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Judul Halaman
-            </label>
-            <input
-              type="text"
-              value={title}
-              onChange={(e) => {
-                setTitle(e.target.value);
-                setHasUnpublishedChanges(true);
-              }}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Deskripsi
-            </label>
-            <textarea
-              value={description}
-              onChange={(e) => {
-                setDescription(e.target.value);
-                setHasUnpublishedChanges(true);
-              }}
-              rows={3}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            />
-          </div>
-        </div>
-      </div>
-
       {/* Main Content */}
       <div className="flex-1 flex">
         {/* Left Sidebar - Component List */}
@@ -579,68 +544,126 @@ export default function EditorPage() {
         <div className="flex-1 overflow-y-auto">
           <div className="max-w-4xl mx-auto p-4 lg:p-8 pb-32 lg:pb-8">
             <div className="bg-white rounded-lg shadow-sm p-4 lg:p-8">
-              <DroppableContainer>
-                <SortableContext items={page?.content || []} strategy={verticalListSortingStrategy}>
-                  {page?.content.map((component: ComponentData, index: number) => (
-                    <SortableComponent 
-                      key={component.id} 
-                      component={component} 
-                      index={index} 
-                      selectedComponent={selectedComponent}
-                      onSelect={handleComponentSelect}
-                    />
-                  ))}
-                </SortableContext>
-              </DroppableContainer>
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragStart={handleDragStart}
+                onDragEnd={handleDragEnd}
+              >
+                <DroppableContainer>
+                  <SortableContext
+                    items={page?.content || []}
+                    strategy={verticalListSortingStrategy}
+                  >
+                    {page?.content.map((component, index) => (
+                      <SortableComponent
+                        key={component.id}
+                        component={component}
+                        index={index}
+                        selectedComponent={selectedComponent}
+                        onSelect={handleComponentSelect}
+                      />
+                    ))}
+                  </SortableContext>
+                </DroppableContainer>
+                <DragOverlay>
+                  {editingComponent && (
+                    <div className="opacity-50">
+                      {React.createElement(componentMap[editingComponent.type], {
+                        content: editingComponent.content,
+                        props: editingComponent.props
+                      })}
+                    </div>
+                  )}
+                </DragOverlay>
+              </DndContext>
             </div>
           </div>
         </div>
 
-        {/* Right Sidebar - Properties Panel */}
+        {/* Right Sidebar */}
         <div className="w-80 bg-white border-l border-gray-200 overflow-y-auto lg:block hidden">
-          <ComponentProperties
-            selectedComponent={selectedComponent}
-            onUpdate={handleComponentUpdate}
-            onDelete={handleDeleteComponent}
-          />
-        </div>
-
-        {/* Mobile: Bottom Component List */}
-        <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 z-40">
-          <div className="overflow-x-auto">
-            <div className="flex space-x-4 pb-2">
-              <ComponentList onAddComponent={handleAddComponent} isMobile={true} />
-            </div>
-          </div>
-        </div>
-
-        {/* Mobile: Properties Panel Dialog */}
-        {selectedComponent && (
-          <div className="lg:hidden fixed inset-0 bg-black bg-opacity-50 z-50">
-            <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-xl max-h-[80vh] overflow-y-auto">
-              <div className="sticky top-0 bg-white border-b border-gray-200 p-4 flex justify-between items-center">
-                <h3 className="text-lg font-medium">Properties</h3>
-                <button 
-                  onClick={() => setSelectedComponent(null)}
-                  className="p-2 text-gray-500 hover:text-gray-700"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
+          <div className="p-4 space-y-4">
+            {/* Page Title and Description */}
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Judul Halaman
+                </label>
+                <input
+                  type="text"
+                  value={title}
+                  onChange={(e) => {
+                    setTitle(e.target.value);
+                    setHasUnpublishedChanges(true);
+                  }}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
               </div>
-              <div className="p-4">
-                <ComponentProperties
-                  selectedComponent={selectedComponent}
-                  onUpdate={handleComponentUpdate}
-                  onDelete={handleDeleteComponent}
-                  isMobile={true}
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Deskripsi
+                </label>
+                <textarea
+                  value={description}
+                  onChange={(e) => {
+                    setDescription(e.target.value);
+                    setHasUnpublishedChanges(true);
+                  }}
+                  rows={3}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
             </div>
+
+            {/* Component Properties */}
+            {selectedComponent && (
+              <ComponentProperties
+                selectedComponent={selectedComponent}
+                onUpdate={handleComponentUpdate}
+                onDelete={handleDeleteComponent}
+              />
+            )}
           </div>
-        )}
+        </div>
       </div>
+
+      {/* Mobile: Bottom Component List */}
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 z-40">
+        <div className="overflow-x-auto">
+          <div className="flex space-x-4 pb-2">
+            <ComponentList onAddComponent={handleAddComponent} isMobile={true} />
+          </div>
+        </div>
+      </div>
+
+      {/* Mobile: Properties Panel Dialog */}
+      {selectedComponent && (
+        <div className="lg:hidden fixed inset-0 bg-black bg-opacity-50 z-50">
+          <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-xl max-h-[80vh] overflow-y-auto">
+            <div className="sticky top-0 bg-white border-b border-gray-200 p-4 flex justify-between items-center">
+              <h3 className="text-lg font-medium">Properties</h3>
+              <button 
+                onClick={() => setSelectedComponent(null)}
+                className="p-2 text-gray-500 hover:text-gray-700"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="p-4">
+              <ComponentProperties
+                selectedComponent={selectedComponent}
+                onUpdate={handleComponentUpdate}
+                onDelete={handleDeleteComponent}
+                isMobile={true}
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 } 

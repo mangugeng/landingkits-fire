@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Cookies from 'js-cookie';
-import { db } from '@/lib/firebase';
+import { db } from '../../../lib/firebase';
 import { collection, getDocs, query, orderBy, doc, getDoc, DocumentData } from 'firebase/firestore';
 import { LandingPage } from '../types/landing-page';
 

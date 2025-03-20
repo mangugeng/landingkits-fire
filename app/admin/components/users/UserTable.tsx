@@ -1,6 +1,6 @@
 'use client';
 
-import { User } from '../types/user';
+import { User } from '../../types/user';
 import { FiEdit2, FiTrash2 } from 'react-icons/fi';
 
 interface UserTableProps {

@@ -2,8 +2,31 @@
 
 import Link from 'next/link';
 import PricingSection from './components/PricingSection';
+import BlogCard from './components/BlogCard';
+import { getLatestPosts } from './lib/blog';
+import { useState, useEffect } from 'react';
+import { BlogPost } from './types/blog';
+import { FiArrowRight } from 'react-icons/fi';
 
 export default function Home() {
+  const [posts, setPosts] = useState<BlogPost[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchPosts = async () => {
+      try {
+        const fetchedPosts = await getLatestPosts(3);
+        setPosts(fetchedPosts);
+      } catch (error) {
+        console.error('Error fetching posts:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchPosts();
+  }, []);
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
       {/* Hero Section */}
@@ -11,7 +34,7 @@ export default function Home() {
         <div className="text-center">
           <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold text-gray-900 mb-6">
             Buat Landing Page Menarik dalam Hitungan Menit
-        </h1>
+          </h1>
           <p className="text-xl text-gray-600 mb-8 max-w-3xl mx-auto">
             Platform all-in-one untuk membuat landing page profesional dengan mudah. 
             Drag & drop, template premium, dan analitik lengkap dalam satu tempat.
@@ -124,6 +147,46 @@ export default function Home() {
       {/* Pricing Section */}
       <PricingSection />
 
+      {/* Latest Articles Section */}
+      <div className="py-16 bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-bold text-gray-900">Artikel Terbaru</h2>
+            <p className="mt-4 text-lg text-gray-600">
+              Temukan tips dan trik terbaru untuk meningkatkan bisnis Anda
+            </p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {isLoading ? (
+              // Loading skeleton
+              Array.from({ length: 3 }).map((_, index) => (
+                <div key={index} className="bg-white rounded-lg shadow-lg overflow-hidden animate-pulse">
+                  <div className="h-48 bg-gray-200"></div>
+                  <div className="p-6">
+                    <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+                    <div className="mt-2 h-4 bg-gray-200 rounded w-1/2"></div>
+                    <div className="mt-4 h-4 bg-gray-200 rounded w-full"></div>
+                  </div>
+                </div>
+              ))
+            ) : (
+              posts.map((post) => (
+                <BlogCard key={post.id} post={post} />
+              ))
+            )}
+          </div>
+          <div className="mt-12 text-center">
+            <Link
+              href="/blog"
+              className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+            >
+              Lihat Semua Artikel
+              <FiArrowRight className="ml-2" />
+            </Link>
+          </div>
+        </div>
+      </div>
+
       {/* CTA Section */}
       <div className="py-16 bg-blue-600">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
@@ -176,8 +239,8 @@ export default function Home() {
               <h3 className="text-lg font-semibold mb-4">Kontak</h3>
               <ul className="space-y-2 text-gray-400">
                 <li>Email: support@landingkits.com</li>
-                <li>Telepon: (021) 1234-5678</li>
-                <li>Alamat: Jl. Contoh No. 123, Jakarta</li>
+                <li>Alamat: Istana Gardenia Regency - Adelia 1 no 16 Cimahi, Jawa Barat</li>
+                <li>WhatsApp: <a href="https://wa.me/6285150783484" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300">+62 851-5078-3484</a></li>
                 <li>Jam Kerja: Senin - Jumat, 09:00 - 17:00</li>
               </ul>
             </div>

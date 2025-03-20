@@ -72,10 +72,10 @@ export default function LandingPageTable({
                 </span>
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                {page.views}
+                {page.analytics?.visitors || 0}
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                {page.conversions}
+                {page.analytics?.conversionRate ? `${page.analytics.conversionRate}%` : '0%'}
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                 {new Date(page.createdAt).toLocaleDateString('id-ID')}

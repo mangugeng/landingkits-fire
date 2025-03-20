@@ -4,6 +4,7 @@ import { User } from '../../types/user';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
 import { useState } from 'react';
+import { FiEdit2, FiTrash2, FiUserCheck, FiUserX } from 'react-icons/fi';
 
 interface UserListProps {
   users: User[];
@@ -74,26 +75,23 @@ export default function UserList({
       <table className="min-w-full divide-y divide-gray-200">
         <thead className="bg-gray-50">
           <tr>
-            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Pengguna
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Nama
             </th>
-            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Email
+            </th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               Role
             </th>
-            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               Status
             </th>
-            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Langganan
-            </th>
-            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Terdaftar
-            </th>
-            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               Login Terakhir
             </th>
-            <th scope="col" className="relative px-6 py-3">
-              <span className="sr-only">Aksi</span>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Aksi
             </th>
           </tr>
         </thead>
@@ -101,148 +99,58 @@ export default function UserList({
           {users.map((user) => (
             <tr key={user.id}>
               <td className="px-6 py-4 whitespace-nowrap">
-                <div className="flex items-center">
-                  <div>
-                    {editingUser?.id === user.id ? (
-                      <div className="space-y-2">
-                        <input
-                          type="text"
-                          value={editedUser?.name || ''}
-                          onChange={(e) => setEditedUser(prev => prev ? { ...prev, name: e.target.value } : null)}
-                          className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-                        />
-                        <input
-                          type="email"
-                          value={editedUser?.email || ''}
-                          onChange={(e) => setEditedUser(prev => prev ? { ...prev, email: e.target.value } : null)}
-                          className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-                        />
-                      </div>
-                    ) : (
-                      <>
-                        <div className="text-sm font-medium text-gray-900">{user.name}</div>
-                        <div className="text-sm text-gray-500">{user.email}</div>
-                      </>
-                    )}
-                  </div>
-                </div>
+                <div className="text-sm font-medium text-gray-900">{user.name}</div>
               </td>
               <td className="px-6 py-4 whitespace-nowrap">
-                {editingUser?.id === user.id ? (
-                  <select
-                    value={editedUser?.role || ''}
-                    onChange={(e) => setEditedUser(prev => prev ? { ...prev, role: e.target.value as 'admin' | 'user' } : null)}
-                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-                  >
-                    <option value="admin">Admin</option>
-                    <option value="user">Pengguna</option>
-                  </select>
-                ) : (
-                  <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getRoleColor(user.role)}`}>
-                    {user.role === 'admin' ? 'Admin' : 'Pengguna'}
-                  </span>
-                )}
+                <div className="text-sm text-gray-500">{user.email}</div>
               </td>
               <td className="px-6 py-4 whitespace-nowrap">
-                <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(user.status)}`}>
-                  {user.status === 'active' ? 'Aktif' : 'Tidak Aktif'}
+                <div className="text-sm text-gray-500">{user.role}</div>
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap">
+                <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                  user.status === 'active' 
+                    ? 'bg-green-100 text-green-800'
+                    : 'bg-red-100 text-red-800'
+                }`}>
+                  {user.status}
                 </span>
               </td>
-              <td className="px-6 py-4 whitespace-nowrap">
-                {editingUser?.id === user.id ? (
-                  <div className="space-y-2">
-                    <select
-                      value={editedUser?.subscription?.plan || 'starter'}
-                      onChange={(e) => setEditedUser(prev => prev ? {
-                        ...prev,
-                        subscription: {
-                          ...prev.subscription,
-                          plan: e.target.value as 'starter' | 'professional' | 'premium' | 'enterprise'
-                        }
-                      } : null)}
-                      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-                    >
-                      <option value="starter">Starter</option>
-                      <option value="professional">Professional</option>
-                      <option value="premium">Premium</option>
-                      <option value="enterprise">Enterprise</option>
-                    </select>
-                    <select
-                      value={editedUser?.subscription?.status || 'active'}
-                      onChange={(e) => setEditedUser(prev => prev ? {
-                        ...prev,
-                        subscription: {
-                          ...prev.subscription,
-                          status: e.target.value as 'active' | 'expired' | 'cancelled'
-                        }
-                      } : null)}
-                      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-                    >
-                      <option value="active">Aktif</option>
-                      <option value="expired">Kadaluarsa</option>
-                      <option value="cancelled">Dibatalkan</option>
-                    </select>
-                  </div>
-                ) : (
-                  <>
-                    <div className="text-sm text-gray-900">
-                      {user.subscription?.plan === 'starter' ? 'Starter' : 
-                       user.subscription?.plan === 'professional' ? 'Professional' :
-                       user.subscription?.plan === 'premium' ? 'Premium' : 'Enterprise'}
-                    </div>
-                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(user.subscription?.status || 'active')}`}>
-                      {user.subscription?.status === 'active' ? 'Aktif' : 
-                       user.subscription?.status === 'expired' ? 'Kadaluarsa' : 'Dibatalkan'}
-                    </span>
-                  </>
-                )}
-              </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                {format(new Date(user.createdAt), 'dd MMMM yyyy', { locale: id })}
+                {user.lastLogin ? new Date(user.lastLogin).toLocaleDateString('id-ID') : '-'}
               </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                {user.lastLogin ? format(new Date(user.lastLogin), 'dd MMMM yyyy', { locale: id }) : 'Belum login'}
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                {editingUser?.id === user.id ? (
-                  <div className="flex space-x-3">
-                    <button
-                      onClick={handleSave}
-                      className="text-green-600 hover:text-green-900"
-                    >
-                      Simpan
-                    </button>
-                    <button
-                      onClick={handleCancel}
-                      className="text-gray-600 hover:text-gray-900"
-                    >
-                      Batal
-                    </button>
-                  </div>
+              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                <button
+                  onClick={() => onEdit(user)}
+                  className="text-blue-600 hover:text-blue-900 mr-4"
+                  title="Edit"
+                >
+                  <FiEdit2 className="inline-block" />
+                </button>
+                {user.status === 'active' ? (
+                  <button
+                    onClick={() => onStatusChange(user.id, 'inactive')}
+                    className="text-yellow-600 hover:text-yellow-900 mr-4"
+                    title="Nonaktifkan"
+                  >
+                    <FiUserX className="inline-block" />
+                  </button>
                 ) : (
-                  <div className="flex space-x-3">
-                    <button
-                      onClick={() => handleEdit(user)}
-                      className="text-blue-600 hover:text-blue-900"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => onStatusChange(user.id, user.status === 'active' ? 'inactive' : 'active')}
-                      className={`${
-                        user.status === 'active' ? 'text-red-600 hover:text-red-900' : 'text-green-600 hover:text-green-900'
-                      }`}
-                    >
-                      {user.status === 'active' ? 'Nonaktifkan' : 'Aktifkan'}
-                    </button>
-                    <button
-                      onClick={() => onDelete(user.id)}
-                      className="text-red-600 hover:text-red-900"
-                    >
-                      Hapus
-                    </button>
-                  </div>
+                  <button
+                    onClick={() => onStatusChange(user.id, 'active')}
+                    className="text-green-600 hover:text-green-900 mr-4"
+                    title="Aktifkan"
+                  >
+                    <FiUserCheck className="inline-block" />
+                  </button>
                 )}
+                <button
+                  onClick={() => onDelete(user.id)}
+                  className="text-red-600 hover:text-red-900"
+                  title="Hapus"
+                >
+                  <FiTrash2 className="inline-block" />
+                </button>
               </td>
             </tr>
           ))}
