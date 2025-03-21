@@ -2,13 +2,20 @@ import GoogleProvider from 'next-auth/providers/google';
 import { FirestoreAdapter } from '@auth/firebase-adapter';
 import { cert } from 'firebase-admin/app';
 
-// Helper function untuk memformat private key
-const formatPrivateKey = (key: string | undefined) => {
-  if (!key) return '';
-  // Jika key sudah dalam format yang benar, langsung kembalikan
-  if (key.includes('-----BEGIN PRIVATE KEY-----')) return key;
-  // Jika tidak, tambahkan header dan footer PEM
-  return `-----BEGIN PRIVATE KEY-----\n${key}\n-----END PRIVATE KEY-----`;
+// Fungsi untuk memproses private key
+const getPrivateKey = () => {
+  // Ambil private key dari environment variable
+  const key = process.env.FIREBASE_PRIVATE_KEY;
+  
+  if (!key) {
+    throw new Error('FIREBASE_PRIVATE_KEY is not set in environment variables');
+  }
+
+  // Hapus quotes di awal dan akhir jika ada
+  const cleanKey = key.replace(/^["']|["']$/g, '');
+  
+  // Ganti literal \n dengan baris baru yang sebenarnya
+  return cleanKey.replace(/\\n/g, '\n');
 };
 
 export const authConfig = {
@@ -22,7 +29,7 @@ export const authConfig = {
     credential: cert({
       projectId: process.env.FIREBASE_PROJECT_ID,
       clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-      privateKey: formatPrivateKey(process.env.FIREBASE_PRIVATE_KEY)?.replace(/\\n/g, '\n'),
+      privateKey: getPrivateKey(),
     }),
   }),
   callbacks: {
