@@ -135,19 +135,21 @@ export default function PricingSection() {
   };
 
   return (
-    <div className="bg-white py-24 sm:py-32">
+    <div className="bg-white py-12 sm:py-12">
       {showPopup && (
         <FeaturePopup
           features={selectedFeatures}
           onClose={() => setShowPopup(false)}
         />
       )}
-      <div className="mx-auto max-w-7xl px-6 lg:px-8">
-        <div className="mx-auto max-w-4xl text-center">
-          <h2 className="text-base font-semibold leading-7 text-blue-600">Pricing</h2>
-          <p className="mt-2 text-4xl font-bold tracking-tight text-gray-900 sm:text-5xl">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="text-center mb-8">
+          <h2 className="text-3xl font-bold text-gray-900">Paket Harga</h2>
+          <p className="mt-4 text-lg text-gray-600">
             Pilih paket yang sesuai dengan kebutuhan Anda
           </p>
+        </div>
+        <div className="mx-auto max-w-4xl text-center">
           <p className="mt-6 text-lg leading-8 text-gray-600">
             Kami menyediakan berbagai paket untuk memenuhi kebutuhan bisnis Anda, dari yang baru memulai hingga perusahaan besar.
           </p>

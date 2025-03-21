@@ -17,7 +17,8 @@ export const subscriptionPlans: SubscriptionPlan[] = [
     maxLandingPages: 1,
     customDomain: false,
     analytics: false,
-    prioritySupport: false
+    prioritySupport: false,
+    description: 'Mulai membuat landing page pertama Anda secara gratis dengan fitur-fitur dasar.'
   },
   {
     id: 'basic',
@@ -35,7 +36,8 @@ export const subscriptionPlans: SubscriptionPlan[] = [
     maxLandingPages: 5,
     customDomain: true,
     analytics: false,
-    prioritySupport: false
+    prioritySupport: false,
+    description: 'Tingkatkan bisnis Anda dengan akses ke semua template dan custom domain.'
   },
   {
     id: 'pro',
@@ -54,6 +56,7 @@ export const subscriptionPlans: SubscriptionPlan[] = [
     maxLandingPages: -1, // unlimited
     customDomain: true,
     analytics: true,
-    prioritySupport: true
+    prioritySupport: true,
+    description: 'Solusi lengkap untuk bisnis yang ingin pertumbuhan maksimal dengan landing page unlimited dan analytics.'
   }
 ]; 

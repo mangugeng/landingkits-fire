@@ -1,16 +1,17 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
+import { collection, query, where, getDocs } from 'firebase/firestore';
+import { db } from './lib/firebase';
+import { BlogPost } from './types/blog';
+import { FiArrowRight } from 'react-icons/fi';
+import { toast } from 'react-hot-toast';
+import { ComponentData } from './components/EditorComponents';
 import PricingSection from './components/PricingSection';
 import BlogCard from './components/BlogCard';
 import { getLatestPosts } from './lib/blog';
-import { useState, useEffect } from 'react';
-import { BlogPost } from './types/blog';
-import { FiArrowRight } from 'react-icons/fi';
-import { collection, query, where, getDocs } from 'firebase/firestore';
-import { db } from './lib/firebase';
-import { toast } from 'react-hot-toast';
-import { ComponentData } from './components/EditorComponents';
 
 interface LandingPage {
   id: string;
@@ -277,34 +278,119 @@ export default function RootPage() {
       {/* Hero Section */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-16 sm:pt-24 sm:pb-20">
         <div className="text-center">
-          <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold text-gray-900 mb-6">
-            Buat Landing Page Menarik dalam Hitungan Menit
-        </h1>
-          <p className="text-xl text-gray-600 mb-8 max-w-3xl mx-auto">
-            Platform all-in-one untuk membuat landing page profesional dengan mudah. 
-            Drag & drop, template premium, dan analitik lengkap dalam satu tempat.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link 
-              href="/auth"
-              className="inline-flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 md:py-4 md:text-lg md:px-10"
-            >
-              Mulai Gratis
-            </Link>
-            <Link
-              href="#features"
-              className="inline-flex items-center justify-center px-8 py-3 border border-gray-300 text-base font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 md:py-4 md:text-lg md:px-10"
-            >
-              Pelajari Lebih Lanjut
-            </Link>
+          {/* Logo */}
+          <div className="flex justify-center mb-12">
+            <div className="flex flex-col items-center">
+              <Image
+                src="/logo.svg"
+                alt="LandingKits Logo"
+                width={120}
+                height={120}
+                priority
+                className="mb-6"
+              />
+              <div className="flex items-center justify-center">
+                <div className="text-center">
+                  <h1 className="text-4xl sm:text-6xl md:text-7xl font-bold text-gray-900 mb-4">
+                    LandingKits.com
+                  </h1>
+                  <p className="text-sm sm:text-xl md:text-2xl text-gray-600">
+                    Buat Landing Page Keren Dalam 1 Menit
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          {/* Main Content */}
+          <div className="max-w-3xl mx-auto">
+            <p className="text-xl text-gray-600 mb-8 max-w-3xl mx-auto">
+              Template landing page profesional yang dapat disesuaikan untuk berbagai kebutuhan bisnis Anda. 
+              Mulai dari portofolio hingga halaman produk.
+            </p>
+            
+            {/* Cara Kerja Sederhana */}
+            <div className="flex justify-center items-center gap-4 mb-8">
+              <div className="text-center">
+                <div className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-2">
+                  <svg className="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
+                  </svg>
+                </div>
+                <p className="text-sm text-gray-600">Pilih Template</p>
+              </div>
+              <svg className="w-6 h-6 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+              <div className="text-center">
+                <div className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-2">
+                  <svg className="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
+                </div>
+                <p className="text-sm text-gray-600">Kustomisasi</p>
+              </div>
+              <svg className="w-6 h-6 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+              <div className="text-center">
+                <div className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-2">
+                  <svg className="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                </div>
+                <p className="text-sm text-gray-600">Publikasikan</p>
+              </div>
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <Link 
+                href="/auth"
+                className="inline-flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 md:py-4 md:text-lg md:px-10"
+              >
+                Mulai Gratis
+              </Link>
+              <button
+                onClick={() => {
+                  const pricingSection = document.getElementById('pricing');
+                  pricingSection?.scrollIntoView({ behavior: 'smooth' });
+                }}
+                className="inline-flex items-center justify-center px-8 py-3 border border-gray-300 text-base font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 md:py-4 md:text-lg md:px-10"
+              >
+                Harga Paket
+              </button>
+            </div>
+
+            {/* Preview Section */}
+            <div className="mt-12 text-center">
+              <p className="text-lg text-gray-600 mb-2">
+                Ingin tahu landing page seperti apa yang bisa Anda buat?
+              </p>
+              <p className="text-lg text-indigo-600 font-medium mb-6">
+                ✨ Kumpulan Landing Page Keren & Profesional ✨
+              </p>
+              <Link
+                href="/preview"
+                className="inline-flex items-center justify-center px-8 py-3 border border-indigo-600 text-base font-medium rounded-md text-indigo-600 bg-white hover:bg-indigo-50 md:py-4 md:text-lg md:px-10 group"
+              >
+                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                </svg>
+                Lihat Contoh Landing Page
+                <svg className="w-4 h-4 ml-2 transform group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </Link>
+            </div>
           </div>
         </div>
       </div>
 
       {/* Features Section */}
-      <div id="features" className="py-16 bg-white">
+      <div id="features" className="py-12 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
+          <div className="text-center mb-8">
             <h2 className="text-3xl font-bold text-gray-900">Fitur Unggulan</h2>
             <p className="mt-4 text-lg text-gray-600">
               Semua yang Anda butuhkan untuk membuat landing page yang sukses
@@ -348,49 +434,10 @@ export default function RootPage() {
         </div>
       </div>
 
-      {/* How It Works Section */}
-      <div className="py-16 bg-gray-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold text-gray-900">Cara Kerja</h2>
-            <p className="mt-4 text-lg text-gray-600">
-              Buat landing page profesional dalam 3 langkah sederhana
-            </p>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div className="text-center">
-              <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <span className="text-xl font-bold text-blue-600">1</span>
-              </div>
-              <h3 className="text-xl font-semibold mb-2">Pilih Template</h3>
-              <p className="text-gray-600">
-                Pilih dari berbagai template profesional yang sudah dioptimalkan
-              </p>
-            </div>
-            <div className="text-center">
-              <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <span className="text-xl font-bold text-blue-600">2</span>
-              </div>
-              <h3 className="text-xl font-semibold mb-2">Kustomisasi</h3>
-              <p className="text-gray-600">
-                Sesuaikan konten, warna, dan elemen sesuai kebutuhan Anda
-              </p>
-            </div>
-            <div className="text-center">
-              <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <span className="text-xl font-bold text-blue-600">3</span>
-              </div>
-              <h3 className="text-xl font-semibold mb-2">Publikasikan</h3>
-              <p className="text-gray-600">
-                Publikasikan landing page Anda dan mulai dapatkan hasil
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-
       {/* Pricing Section */}
-      <PricingSection />
+      <div id="pricing" className="py-12 bg-gray-50">
+        <PricingSection />
+      </div>
 
       {/* Latest Articles Section */}
       <div className="py-16 bg-white">

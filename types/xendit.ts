@@ -8,13 +8,21 @@ export interface XenditInvoiceItem {
 export interface CreateInvoiceRequest {
   externalId: string;
   amount: number;
+  currency: string;
   payerEmail: string;
   description: string;
-  invoiceDuration?: string;
-  currency?: string;
-  items?: XenditInvoiceItem[];
+  customer?: {
+    givenNames: string;
+    email: string;
+  };
   successRedirectUrl?: string;
   failureRedirectUrl?: string;
+  items?: Array<{
+    name: string;
+    quantity: number;
+    price: number;
+    category: string;
+  }>;
 }
 
 export interface CreateInvoiceOperationRequest {
@@ -40,4 +48,18 @@ export interface Invoice {
   created: Date;
   updated: Date;
   currency: string;
+}
+
+export interface XenditInvoice {
+  id: string;
+  externalId: string;
+  userId: string;
+  status: string;
+  amount: number;
+  payerEmail: string;
+  description: string;
+  invoiceUrl: string;
+  expiryDate: string;
+  createdAt: string;
+  updatedAt: string;
 } 

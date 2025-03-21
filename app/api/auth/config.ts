@@ -23,11 +23,11 @@ const validateEnvVars = (): EnvVars => {
   };
 
   const missing = Object.entries(required)
-    .filter(([_, value]) => !value)
+    .filter(([_, value]) => !value || (typeof value === 'string' && value.includes('your-')))
     .map(([key]) => key);
 
   if (missing.length > 0) {
-    throw new Error(`Missing required environment variables: ${missing.join(', ')}`);
+    throw new Error(`Missing or invalid environment variables: ${missing.join(', ')}`);
   }
 
   // Log untuk debug
@@ -48,6 +48,7 @@ const envVars = validateEnvVars();
 
 // Konfigurasi auth
 export const authConfig = {
+  secret: process.env.NEXTAUTH_SECRET || envVars.FIREBASE_PRIVATE_KEY,
   providers: [
     GoogleProvider({
       clientId: envVars.GOOGLE_CLIENT_ID,
@@ -68,6 +69,10 @@ export const authConfig = {
       }
       return session;
     },
+  },
+  pages: {
+    signIn: '/auth',
+    error: '/auth/error',
   },
   debug: process.env.NODE_ENV === 'development',
 }; 

@@ -1,7 +1,15 @@
 export type SubscriptionTier = 'FREE' | 'BASIC' | 'PRO' | 'ENTERPRISE';
-export type SubscriptionStatus = 'ACTIVE' | 'INACTIVE' | 'CANCELLED' | 'EXPIRED';
+export type SubscriptionStatus = 
+  | 'ACTIVE'      // Subscription aktif
+  | 'PENDING'     // Menunggu pembayaran
+  | 'EXPIRED'     // Sudah berakhir
+  | 'CANCELLED'   // Dibatalkan
+  | 'GRACE'       // Masa tenggang
+  | 'SUSPENDED';  // Ditangguhkan
 export type PaymentStatus = 'PENDING' | 'PAID' | 'FAILED' | 'EXPIRED';
 export type PaymentMethod = 'CREDIT_CARD' | 'VIRTUAL_ACCOUNT' | 'EWALLET' | 'QRIS' | 'BANK_TRANSFER';
+
+export type SubscriptionInterval = 'MONTH' | 'YEAR';
 
 export interface SubscriptionPlan {
   id: string;
@@ -16,22 +24,26 @@ export interface SubscriptionPlan {
   customDomain: boolean;
   analytics: boolean;
   prioritySupport: boolean;
+  description: string;
+  metadata?: {
+    popularPlan?: boolean;
+    maxProjects?: number;
+    [key: string]: any;
+  };
 }
 
 export interface Subscription {
-  id: string;
   userId: string;
-  planId: string;
   status: SubscriptionStatus;
-  startDate: Date;
-  endDate: Date;
+  plan: 'BASIC' | 'PRO' | 'ENTERPRISE';
+  startDate: string;
+  endDate: string;
+  graceEndDate?: string;
   interval: 'MONTH' | 'YEAR';
-  autoRenew: boolean;
-  currentPeriodStart: Date;
-  currentPeriodEnd: Date;
-  cancelAtPeriodEnd: boolean;
-  paymentMethodId?: string;
-  lastPaymentDate?: Date;
+  cancelReason?: string;
+  renewalAttempts: number;
+  lastPaymentDate: string;
+  nextPaymentDate: string;
 }
 
 export interface PaymentHistory {
@@ -69,4 +81,16 @@ export interface Invoice {
   paidAt?: Date;
   createdAt: Date;
   updatedAt: Date;
+}
+
+export interface SubscriptionLog {
+  subscriptionId: string;
+  userId: string;
+  action: 'CREATE' | 'UPDATE' | 'DELETE';
+  timestamp: string;
+  details: {
+    oldStatus?: SubscriptionStatus;
+    newStatus?: SubscriptionStatus;
+    reason?: string;
+  };
 } 

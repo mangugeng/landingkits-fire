@@ -129,7 +129,7 @@ export default function DashboardLandingPage() {
           </div>
           <Link
             href="/dashboard/landingpage/create"
-            className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors mt-4 md:mt-0"
+            className="w-full md:w-auto inline-flex items-center justify-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors mt-4 md:mt-0"
           >
             <DocumentPlusIcon className="w-5 h-5 mr-2" />
             Buat Landing Page Baru
@@ -137,7 +137,7 @@ export default function DashboardLandingPage() {
         </div>
 
         {/* Stats Overview */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div className="hidden md:grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           <div className="bg-white p-4 rounded-lg shadow">
             <div className="flex items-center">
               <div className="p-2 bg-blue-100 rounded-lg">
@@ -187,6 +187,26 @@ export default function DashboardLandingPage() {
                 </p>
               </div>
             </div>
+          </div>
+        </div>
+
+        {/* Mobile Grid Menu */}
+        <div className="md:hidden grid grid-cols-2 sm:grid-cols-3 gap-4 mb-6">
+          <div className="flex flex-col items-center justify-center p-4 bg-white rounded-lg shadow">
+            <DocumentTextIcon className="w-8 h-8 text-blue-600 mb-2" />
+            <span className="text-sm text-gray-700">Total: {landingPages.length}</span>
+          </div>
+          <div className="flex flex-col items-center justify-center p-4 bg-white rounded-lg shadow">
+            <EyeIcon className="w-8 h-8 text-green-600 mb-2" />
+            <span className="text-sm text-gray-700">Views: {landingPages.reduce((sum, page) => sum + page.views, 0)}</span>
+          </div>
+          <div className="flex flex-col items-center justify-center p-4 bg-white rounded-lg shadow">
+            <ChartBarIcon className="w-8 h-8 text-purple-600 mb-2" />
+            <span className="text-sm text-gray-700">Conversions: {landingPages.reduce((sum, page) => sum + page.conversions, 0)}</span>
+          </div>
+          <div className="flex flex-col items-center justify-center p-4 bg-white rounded-lg shadow">
+            <CheckCircleIcon className="w-8 h-8 text-green-600 mb-2" />
+            <span className="text-sm text-gray-700">Published: {landingPages.filter(page => page.status === 'published').length}</span>
           </div>
         </div>
 
@@ -306,8 +326,11 @@ export default function DashboardLandingPage() {
             <div className="md:hidden space-y-4">
               {landingPages.map((page) => (
                 <div key={page.id} className="bg-white rounded-lg shadow p-4">
-                  <div className="flex justify-between items-start mb-2">
-                    <h3 className="text-lg font-medium text-gray-900">{page.title}</h3>
+                  <div className="flex justify-between items-start mb-3">
+                    <div>
+                      <h3 className="text-lg font-medium text-gray-900">{page.title}</h3>
+                      <p className="text-sm text-gray-500">{page.description}</p>
+                    </div>
                     <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
                       page.status === 'published' 
                         ? 'bg-green-100 text-green-800' 
@@ -316,62 +339,35 @@ export default function DashboardLandingPage() {
                       {page.status === 'published' ? 'Published' : 'Draft'}
                     </span>
                   </div>
-                  <p className="text-sm text-gray-600 mb-4">{page.description}</p>
                   <div className="grid grid-cols-2 gap-4 mb-4">
                     <div>
-                      <p className="text-xs text-gray-500">Views</p>
-                      <p className="text-sm font-medium text-gray-900">{page.views}</p>
+                      <p className="text-sm text-gray-500">Views</p>
+                      <p className="text-lg font-medium">{page.views}</p>
                     </div>
                     <div>
-                      <p className="text-xs text-gray-500">Conversions</p>
-                      <p className="text-sm font-medium text-gray-900">{page.conversions}</p>
+                      <p className="text-sm text-gray-500">Conversions</p>
+                      <p className="text-lg font-medium">{page.conversions}</p>
                     </div>
                   </div>
                   <div className="flex justify-between items-center">
-                    <p className="text-xs text-gray-500">Last updated: {page.lastUpdated}</p>
-                    <div className="flex space-x-3">
-                      <Link
-                        href={`/dashboard/editor/${page.slug}`}
-                        className="text-blue-600 hover:text-blue-900"
-                        title="Edit"
-                      >
-                        <PencilSquareIcon className="w-5 h-5" />
-                      </Link>
+                    <p className="text-sm text-gray-500">Updated: {page.lastUpdated}</p>
+                    <div className="flex gap-2">
                       <Link
                         href={`/preview/${page.slug}`}
-                        className="text-purple-600 hover:text-purple-900"
-                        title="Preview"
+                        target="_blank"
+                        className="p-2 text-gray-600 hover:text-gray-900"
                       >
                         <EyeIcon className="w-5 h-5" />
                       </Link>
                       <Link
-                        href={`/${page.slug}`}
-                        target="_blank"
-                        className="text-green-600 hover:text-green-900"
-                        title="Live View"
+                        href={`/dashboard/editor/${page.slug}`}
+                        className="p-2 text-gray-600 hover:text-gray-900"
                       >
-                        <ArrowTopRightOnSquareIcon className="w-5 h-5" />
+                        <PencilSquareIcon className="w-5 h-5" />
                       </Link>
                       <button
-                        onClick={() => handleStatusChange(page.id, page.status === 'published' ? 'draft' : 'published')}
-                        className={`${
-                          page.status === 'published' 
-                            ? 'text-yellow-600 hover:text-yellow-900' 
-                            : 'text-green-600 hover:text-green-900'
-                        }`}
-                        title={page.status === 'published' ? 'Set as Draft' : 'Publish'}
-                      >
-                        {page.status === 'published' ? (
-                          <DocumentIcon className="w-5 h-5" />
-                        ) : (
-                          <CheckCircleIcon className="w-5 h-5" />
-                        )}
-                      </button>
-                      <button
                         onClick={() => handleDeletePage(page.id)}
-                        disabled={isDeleting}
-                        className="text-red-600 hover:text-red-900 disabled:opacity-50"
-                        title="Delete"
+                        className="p-2 text-red-600 hover:text-red-700"
                       >
                         <TrashIcon className="w-5 h-5" />
                       </button>

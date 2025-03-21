@@ -2,7 +2,6 @@
 
 import './globals.css';
 import { Inter } from 'next/font/google';
-import { Toaster } from 'react-hot-toast';
 import LayoutWrapper from './components/LayoutWrapper';
 import { SessionProvider } from 'next-auth/react';
 
@@ -16,7 +15,6 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
-        <Toaster position="top-center" />
         <SessionProvider>
           <LayoutWrapper>
             {children}

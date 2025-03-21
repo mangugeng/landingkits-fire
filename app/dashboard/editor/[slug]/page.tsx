@@ -41,6 +41,7 @@ import {
   SpacerComponent
 } from '../../../components/EditorComponents';
 import { collection, getDocs, query, where } from 'firebase/firestore';
+import DashboardLayout from '../../../../components/dashboard/DashboardLayout';
 
 interface LandingPage {
   id: string;
@@ -83,10 +84,22 @@ interface SortableComponentProps {
 
 const SortableComponent = ({ component, index, selectedComponent, onSelect }: SortableComponentProps) => {
   const Component = componentMap[component.type];
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
   
   return (
     <div 
-      onClick={() => onSelect(component)}
+      onClick={() => isMobile && onSelect(component)}
       className={`relative cursor-pointer transition-all ${
         selectedComponent?.id === component.id ? 'ring-2 ring-blue-600 ring-opacity-100' : 'hover:ring-2 hover:ring-blue-300 hover:ring-opacity-50'
       }`}
@@ -99,7 +112,7 @@ const SortableComponent = ({ component, index, selectedComponent, onSelect }: So
 const DroppableContainer = ({ children }: { children: React.ReactNode }) => {
   return (
     <div 
-      className="space-y-4 min-h-[200px] p-4 border-2 border-dashed border-gray-300 rounded-lg"
+      className="space-y-4 min-h-[200px] p-2 md:p-4 border-2 border-dashed border-gray-300 rounded-lg"
       data-droppable-id="canvas"
     >
       {children}
@@ -107,22 +120,18 @@ const DroppableContainer = ({ children }: { children: React.ReactNode }) => {
   );
 };
 
-export default function EditorPage() {
+export default function Editor() {
   const router = useRouter();
   const params = useParams();
-  const [loading, setLoading] = useState(true);
-  const [page, setPage] = useState<LandingPage | null>(null);
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [hasUnpublishedChanges, setHasUnpublishedChanges] = useState(false);
-  const [editingComponent, setEditingComponent] = useState<ComponentData | null>(null);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [landingPage, setLandingPage] = useState<LandingPage | null>(null);
   const [selectedComponent, setSelectedComponent] = useState<ComponentData | null>(null);
-  const [isEditing, setIsEditing] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
-  const [isPreviewMode, setIsPreviewMode] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [activeDraggedComponent, setActiveDraggedComponent] = useState<ComponentData | null>(null);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [isMobile, setIsMobile] = useState(false);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -130,36 +139,6 @@ export default function EditorPage() {
       coordinateGetter: sortableKeyboardCoordinates,
     })
   );
-
-  useEffect(() => {
-    const fetchPage = async () => {
-      try {
-        const pageSlug = Array.isArray(params.slug) ? params.slug[0] : params.slug;
-        const q = query(
-          collection(db, 'landing_pages'),
-          where('slug', '==', pageSlug)
-        );
-        const querySnapshot = await getDocs(q);
-        
-        if (!querySnapshot.empty) {
-          const doc = querySnapshot.docs[0];
-          const data = doc.data() as LandingPage;
-          setPage({ ...data, id: doc.id });
-        } else {
-          toast.error('Halaman tidak ditemukan');
-          router.push('/dashboard/landingpage');
-        }
-      } catch (error) {
-        console.error('Error fetching page:', error);
-        toast.error('Gagal mengambil data halaman');
-        router.push('/dashboard/landingpage');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchPage();
-  }, [router, params.slug]);
 
   useEffect(() => {
     const checkMobile = () => {
@@ -173,52 +152,65 @@ export default function EditorPage() {
   }, []);
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      setIsPreviewMode(false);
-    }
-  }, []);
-
-  const handleDragStart = (event: DragStartEvent) => {
-    const { active } = event;
-    if (active.id.toString().startsWith('sidebar-')) {
-      const componentType = active.id.toString().replace('sidebar-', '') as ComponentData['type'];
-      handleAddComponent(componentType);
-    }
-  };
-
-  const handleDragEnd = (event: DragEndEvent) => {
-    const { active, over } = event;
-
-    if (!over || !page) return;
-
-    if (active.id !== over.id) {
-      const oldIndex = page.content.findIndex((item) => item.id === active.id);
-      const newIndex = page.content.findIndex((item) => item.id === over.id);
-      
-      if (oldIndex !== -1 && newIndex !== -1) {
-        setPage(prev => prev ? {
-          ...prev,
-          content: arrayMove(prev.content, oldIndex, newIndex)
-        } : null);
-        setHasUnpublishedChanges(true);
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (!user) {
+        router.push('/auth');
+        return;
       }
+      fetchLandingPage(user.uid);
+    });
+
+    return () => unsubscribe();
+  }, [router, params]);
+
+  const fetchLandingPage = async (userId: string) => {
+    try {
+      const landingPagesRef = collection(db, 'landing_pages');
+      const q = query(
+        landingPagesRef,
+        where('userId', '==', userId),
+        where('slug', '==', params.slug)
+      );
+      const querySnapshot = await getDocs(q);
+      
+      if (querySnapshot.empty) {
+        toast.error('Landing page tidak ditemukan');
+        router.push('/dashboard');
+        return;
+      }
+
+      const doc = querySnapshot.docs[0];
+      const data = doc.data() as LandingPage;
+      data.id = doc.id;
+      
+      setLandingPage(data);
+    } catch (error) {
+      console.error('Error fetching landing page:', error);
+      toast.error('Gagal memuat landing page');
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const handleSave = async () => {
-    if (!page) return;
-    
-    setIsSaving(true);
+    if (!landingPage) return;
+
     try {
-      const pageSlug = page.slug || (Array.isArray(params.slug) ? params.slug[0] : params.slug);
-      const docRef = doc(db, 'landing_pages', page.id);
-      await updateDoc(docRef, {
-        ...page,
-        lastUpdated: serverTimestamp(),
-      });
+      setIsSaving(true);
+      const docRef = doc(db, 'landing_pages', landingPage.id);
+
+      const updateData = {
+        title: landingPage.title,
+        description: landingPage.description,
+        content: landingPage.content,
+        updatedAt: serverTimestamp(),
+        hasUnpublishedChanges: true
+      };
+
+      await updateDoc(docRef, updateData);
       toast.success('Perubahan berhasil disimpan');
     } catch (error) {
-      console.error('Error saving page:', error);
+      console.error('Error saving landing page:', error);
       toast.error('Gagal menyimpan perubahan');
     } finally {
       setIsSaving(false);
@@ -226,32 +218,68 @@ export default function EditorPage() {
   };
 
   const handlePublish = async () => {
-    if (!page) return;
+    if (!landingPage) return;
 
-    setIsPublishing(true);
     try {
-      const pageSlug = page.slug || (Array.isArray(params.slug) ? params.slug[0] : params.slug);
-      const docRef = doc(db, 'landing_pages', page.id);
-      await updateDoc(docRef, {
+      setIsPublishing(true);
+      const docRef = doc(db, 'landing_pages', landingPage.id);
+
+      const updateData = {
         status: 'published',
         publishedAt: serverTimestamp(),
-      });
-      toast.success('Halaman berhasil dipublikasikan');
-      router.push('/dashboard/landingpage');
+        updatedAt: serverTimestamp(),
+        hasUnpublishedChanges: false
+      };
+
+      await updateDoc(docRef, updateData);
+      toast.success('Landing page berhasil dipublikasikan');
     } catch (error) {
-      console.error('Error publishing page:', error);
-      toast.error('Gagal mempublikasikan halaman');
+      console.error('Error publishing landing page:', error);
+      toast.error('Gagal mempublikasikan landing page');
     } finally {
       setIsPublishing(false);
     }
   };
 
-  const handleAddComponent = (type: ComponentData['type']) => {
-    if (!page) return;
+  const handleDragStart = (event: DragStartEvent) => {
+    const { active } = event;
+    setActiveId(active.id as string);
+
+    const draggedComponent = landingPage?.content.find(
+      (component) => component.id === active.id
+    );
+    if (draggedComponent) {
+      setActiveDraggedComponent(draggedComponent);
+    }
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (over && active.id !== over.id && landingPage) {
+      const oldIndex = landingPage.content.findIndex(
+        (component) => component.id === active.id
+      );
+      const newIndex = landingPage.content.findIndex(
+        (component) => component.id === over.id
+      );
+
+      setLandingPage({
+        ...landingPage,
+        content: arrayMove(landingPage.content, oldIndex, newIndex),
+      });
+    }
+
+    setActiveId(null);
+    setActiveDraggedComponent(null);
+  };
+
+  const handleAddComponent = (type: string) => {
+    if (!landingPage) return;
 
     const newComponent: ComponentData = {
-      id: `comp-${Date.now()}`,
-      type,
+      id: generateId(),
+      type: type as keyof typeof componentMap,
       content: type === 'heading' ? 'New Heading' :
                type === 'paragraph' ? 'New paragraph text...' :
                type === 'button' ? 'Click me' :
@@ -287,281 +315,278 @@ export default function EditorPage() {
                  { name: 'Enterprise', price: '$99', features: ['Feature 1', 'Feature 2', 'Feature 3', 'Feature 4', 'Feature 5'], ctaText: 'Get Started', ctaLink: '#', popular: false }
                ]
              } :
-             undefined
+             {}
     };
 
-    setPage(prev => prev ? {
-      ...prev,
-      content: [...(prev.content || []), newComponent]
-    } : null);
-  };
-
-  const handleEditComponent = (id: string) => {
-    console.log('Edit component clicked:', id);
-    if (!page) return;
-    const component = page.content.find(c => c.id === id);
-    console.log('Found component:', component);
-    if (component) {
-      setEditingComponent(component);
-      setIsEditModalOpen(true);
-    }
-  };
-
-  const handleDeleteComponent = (id: string) => {
-    console.log('Delete component clicked:', id);
-    if (!page) return;
-    console.log('Current page content:', page.content);
-    
-    // Hapus komponen dari content
-    setPage(prev => {
-      if (!prev) return null;
-      const newContent = prev.content.filter(c => c.id !== id);
-      console.log('New content after delete:', newContent);
-      return {
-        ...prev,
-        content: newContent
-      };
+    setLandingPage({
+      ...landingPage,
+      content: [...landingPage.content, newComponent],
     });
-
-    // Reset selectedComponent ke null untuk mengosongkan panel properti
-    setSelectedComponent(null);
-    
-    setHasUnpublishedChanges(true);
   };
 
   const handleUpdateComponent = (updatedComponent: ComponentData) => {
-    if (!page) return;
-    setPage(prev => prev ? {
-      ...prev,
-      content: prev.content.map(c => 
-        c.id === updatedComponent.id ? updatedComponent : c
-      )
-    } : null);
-    setHasUnpublishedChanges(true);
-    setIsEditModalOpen(false);
-    setEditingComponent(null);
+    if (!landingPage) return;
+
+    const updatedContent = landingPage.content.map((component) =>
+      component.id === updatedComponent.id ? updatedComponent : component
+    );
+
+    setLandingPage({
+      ...landingPage,
+      content: updatedContent,
+    });
   };
 
-  const handleComponentSelect = (component: ComponentData) => {
-    setSelectedComponent(component);
-  };
+  const handleDeleteComponent = (componentId: string) => {
+    if (!landingPage) return;
 
-  const handleComponentUpdate = (updatedComponent: ComponentData) => {
-    if (!page) return;
-    
-    // Update komponen dalam state
-    setPage(prev => {
-      if (!prev) return null;
-      return {
-        ...prev,
-        content: prev.content.map(component => 
-          component.id === updatedComponent.id ? updatedComponent : component
-        )
-      };
+    const updatedContent = landingPage.content.filter(
+      (component) => component.id !== componentId
+    );
+
+    setLandingPage({
+      ...landingPage,
+      content: updatedContent,
     });
 
-    // Update komponen yang dipilih
-    setSelectedComponent(updatedComponent);
-    
-    // Tandai ada perubahan yang belum disimpan
-    setHasUnpublishedChanges(true);
+    setSelectedComponent(null);
   };
 
-  const handleBack = () => {
-    router.push('/dashboard/landingpage');
-  };
-
-  if (loading) {
+  if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="flex items-center justify-center min-h-screen">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
       </div>
     );
   }
 
-  return (
-    <div className="min-h-screen flex flex-col bg-gray-100">
-      {/* Sticky Navbar */}
-      <nav className="sticky top-0 bg-white border-b border-gray-200 z-50">
-        <div className="max-w-full mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center gap-4">
-              <button
-                onClick={handleBack}
-                className="text-gray-600 hover:text-gray-900 flex items-center gap-1"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clipRule="evenodd" />
-                </svg>
-                <span className="hidden lg:inline">Kembali ke Dashboard</span>
-              </button>
-              <h1 className="text-xl font-semibold text-gray-900 hidden lg:block">Edit Landing Page</h1>
-            </div>
+  if (!landingPage) {
+    return null;
+  }
 
-            <div className="flex items-center gap-4">
-              {hasUnpublishedChanges && (
-                <span className="hidden lg:inline-block text-sm text-yellow-600 bg-yellow-50 px-3 py-1 rounded-full">
-                  Ada perubahan yang belum dipublish
-                </span>
-              )}
-              <div className="flex gap-2">
+  return (
+    <DashboardLayout>
+      <div className="flex flex-col h-[calc(100vh-4rem)]">
+        {/* Top Bar */}
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between p-4 border-b border-gray-200 bg-white space-y-4 md:space-y-0">
+          <div className="flex-1 md:flex-none">
+            <input
+              type="text"
+              value={landingPage?.title || ''}
+              onChange={(e) => setLandingPage(prev => prev ? { ...prev, title: e.target.value } : null)}
+              className="text-lg font-semibold text-gray-900 bg-transparent border-none focus:ring-0 p-2 w-full rounded-md hover:bg-gray-50"
+              placeholder="Judul Landing Page"
+            />
+            <input
+              type="text"
+              value={landingPage?.description || ''}
+              onChange={(e) => setLandingPage(prev => prev ? { ...prev, description: e.target.value } : null)}
+              className="text-sm text-gray-500 bg-transparent border-none focus:ring-0 p-2 w-full rounded-md hover:bg-gray-50"
+              placeholder="Deskripsi Landing Page"
+            />
+            </div>
+          <div className="flex items-center space-x-2 w-full md:w-auto justify-end">
                 <button
                   onClick={handleSave}
-                  className="flex items-center justify-center px-3 lg:px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700"
-                  title="Simpan"
+              disabled={isSaving}
+              className="flex-1 md:flex-none px-3 py-1.5 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 lg:mr-2" viewBox="0 0 20 20" fill="currentColor">
-                    <path d="M3 17V7a2 2 0 012-2h4l2 2h4a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2zm12-9H5v8h10V8z"/>
-                  </svg>
-                  <span className="hidden lg:inline">Simpan</span>
+              {isSaving ? 'Menyimpan...' : 'Simpan'}
                 </button>
                 <button
                   onClick={handlePublish}
-                  className="flex items-center justify-center px-3 lg:px-4 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-md"
-                  title="Publish"
+              disabled={isPublishing}
+              className="flex-1 md:flex-none px-3 py-1.5 text-sm font-medium text-white bg-green-600 border border-transparent rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50"
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 lg:mr-2" viewBox="0 0 20 20" fill="currentColor">
-                    <path d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z"/>
-                  </svg>
-                  <span className="hidden lg:inline">Publish</span>
+              {isPublishing ? 'Mempublikasi...' : 'Publikasi'}
                 </button>
+          </div>
+        </div>
+
+        {/* Main Content Area - 3 Column Layout */}
+        <div className="flex-1 flex">
+          {/* Left Sidebar - Component List */}
+          <div className="hidden md:block w-64 bg-white border-r border-gray-200">
+            <div className="flex flex-col h-full">
+              <div className="flex items-center justify-between p-4 border-b border-gray-200">
+                <h2 className="text-lg font-semibold text-gray-900">Komponen</h2>
+              </div>
+              <div className="flex-1 overflow-y-auto p-4">
+                <ComponentList onAddComponent={handleAddComponent} />
               </div>
             </div>
           </div>
-        </div>
-      </nav>
 
-      {/* Main Content */}
-      <div className="flex-1 flex">
-        {/* Left Sidebar - Component List */}
-        <div className="w-64 bg-white border-r border-gray-200 overflow-y-auto lg:block hidden">
-          <ComponentList onAddComponent={handleAddComponent} />
-        </div>
-
-        {/* Main Canvas */}
-        <div className="flex-1 overflow-y-auto">
-          <div className="max-w-4xl mx-auto p-4 lg:p-8 pb-32 lg:pb-8">
-            <div className="bg-white rounded-lg shadow-sm p-4 lg:p-8">
+          {/* Center - Editor Canvas */}
+          <div className="flex-1 overflow-y-auto bg-gray-50 p-2 md:p-4">
+            <div className="max-w-4xl mx-auto">
               <DndContext
                 sensors={sensors}
                 collisionDetection={closestCenter}
                 onDragStart={handleDragStart}
                 onDragEnd={handleDragEnd}
               >
-                <DroppableContainer>
                   <SortableContext
-                    items={page?.content || []}
+                  items={landingPage?.content.map((item) => item.id) || []}
                     strategy={verticalListSortingStrategy}
                   >
-                    {page?.content.map((component, index) => (
+                  <DroppableContainer>
+                    {landingPage?.content.map((component, index) => (
                       <SortableComponent
                         key={component.id}
                         component={component}
                         index={index}
                         selectedComponent={selectedComponent}
-                        onSelect={handleComponentSelect}
+                        onSelect={setSelectedComponent}
                       />
                     ))}
+                  </DroppableContainer>
                   </SortableContext>
-                </DroppableContainer>
+
                 <DragOverlay>
-                  {editingComponent && (
+                  {activeDraggedComponent && (
                     <div className="opacity-50">
-                      {React.createElement(componentMap[editingComponent.type], {
-                        content: editingComponent.content,
-                        props: editingComponent.props
+                      {React.createElement(componentMap[activeDraggedComponent.type], {
+                        content: activeDraggedComponent.content,
+                        props: activeDraggedComponent.props,
                       })}
                     </div>
                   )}
                 </DragOverlay>
               </DndContext>
-            </div>
           </div>
         </div>
 
-        {/* Right Sidebar */}
-        <div className="w-80 bg-white border-l border-gray-200 overflow-y-auto lg:block hidden">
-          <div className="p-4 space-y-4">
-            {/* Page Title and Description */}
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Judul Halaman
-                </label>
-                <input
-                  type="text"
-                  value={title}
-                  onChange={(e) => {
-                    setTitle(e.target.value);
-                    setHasUnpublishedChanges(true);
-                  }}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                />
+          {/* Right Sidebar - Properties Panel */}
+          <div className={`hidden md:block w-80 bg-white border-l border-gray-200 ${!selectedComponent && 'opacity-50'}`}>
+            <div className="flex flex-col h-full">
+              <div className="flex items-center justify-between p-4 border-b border-gray-200">
+                <h2 className="text-lg font-semibold text-gray-900">Properti</h2>
+                {selectedComponent && (
+                  <button
+                    onClick={() => setSelectedComponent(null)}
+                    className="text-gray-500 hover:text-gray-700"
+                  >
+                    <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                )}
               </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Deskripsi
-                </label>
-                <textarea
-                  value={description}
-                  onChange={(e) => {
-                    setDescription(e.target.value);
-                    setHasUnpublishedChanges(true);
-                  }}
-                  rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                />
-              </div>
-            </div>
-
-            {/* Component Properties */}
-            {selectedComponent && (
+              <div className="flex-1 overflow-y-auto p-4">
+                {selectedComponent ? (
               <ComponentProperties
                 selectedComponent={selectedComponent}
-                onUpdate={handleComponentUpdate}
+                    onUpdate={handleUpdateComponent}
                 onDelete={handleDeleteComponent}
+                    isMobile={isMobile}
               />
+                ) : (
+                  <div className="text-center text-gray-500 mt-4">
+                    Pilih komponen untuk mengedit properti
+                  </div>
             )}
           </div>
         </div>
       </div>
 
-      {/* Mobile: Bottom Component List */}
-      <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 z-40">
-        <div className="overflow-x-auto">
-          <div className="flex space-x-4 pb-2">
-            <ComponentList onAddComponent={handleAddComponent} isMobile={true} />
+          {/* Mobile Component List - Bottom Panel */}
+          <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-40">
+            <div className="p-2 pb-6">
+              <div className="flex flex-row flex-nowrap overflow-x-auto py-1">
+                {Object.entries(componentMap).map(([type, Component]) => (
+                  <button
+                    key={type}
+                    onClick={() => handleAddComponent(type)}
+                    className="flex items-center gap-2 flex-shrink-0 px-3 py-2 mx-1 bg-white border border-gray-200 rounded-lg hover:bg-blue-50 transition-colors"
+                    title={type.charAt(0).toUpperCase() + type.slice(1)}
+                  >
+                    <div className="w-5 h-5 flex items-center justify-center text-gray-600">
+                      {type === 'heading' && (
+                        <svg xmlns="http://www.w3.org/2000/svg" className="w-full h-full" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 5h14M5 12h14M5 19h14" />
+                        </svg>
+                      )}
+                      {type === 'paragraph' && (
+                        <svg xmlns="http://www.w3.org/2000/svg" className="w-full h-full" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                        </svg>
+                      )}
+                      {type === 'image' && (
+                        <svg xmlns="http://www.w3.org/2000/svg" className="w-full h-full" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4-4m0 0L20 4m-4 4l4-4M4 8v12a2 2 0 002 2h12a2 2 0 002-2V8M4 8l4-4h8l4 4M8 12a2 2 0 100-4 2 2 0 000 4z" />
+                        </svg>
+                      )}
+                      {type === 'button' && (
+                        <svg xmlns="http://www.w3.org/2000/svg" className="w-full h-full" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M15 7v6a4 4 0 01-4 4H9.828l-1.766 1.767c.28.149.599.233.938.233h2l3 3v-3h2a2 2 0 002-2V9a2 2 0 00-2-2h-1z" />
+                        </svg>
+                      )}
+                      {type === 'form' && (
+                        <svg xmlns="http://www.w3.org/2000/svg" className="w-full h-full" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                        </svg>
+                      )}
+                      {type === 'cta' && (
+                        <svg xmlns="http://www.w3.org/2000/svg" className="w-full h-full" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
+                        </svg>
+                      )}
+                      {type === 'features' && (
+                        <svg xmlns="http://www.w3.org/2000/svg" className="w-full h-full" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+                        </svg>
+                      )}
+                      {type === 'testimonial' && (
+                        <svg xmlns="http://www.w3.org/2000/svg" className="w-full h-full" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                        </svg>
+                      )}
+                      {type === 'pricing' && (
+                        <svg xmlns="http://www.w3.org/2000/svg" className="w-full h-full" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                      )}
+                      {type === 'spacer' && (
+                        <svg xmlns="http://www.w3.org/2000/svg" className="w-full h-full" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M8 7h12m0 0L16 3m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                        </svg>
+                      )}
+                    </div>
+                  </button>
+                ))}
           </div>
         </div>
       </div>
 
-      {/* Mobile: Properties Panel Dialog */}
+          {/* Mobile Properties Panel */}
       {selectedComponent && (
-        <div className="lg:hidden fixed inset-0 bg-black bg-opacity-50 z-50">
-          <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-xl max-h-[80vh] overflow-y-auto">
-            <div className="sticky top-0 bg-white border-b border-gray-200 p-4 flex justify-between items-center">
-              <h3 className="text-lg font-medium">Properties</h3>
+            <div className="md:hidden fixed inset-y-0 right-0 z-50 w-full bg-white border-l border-gray-200 transform transition-transform duration-300 ease-in-out">
+              <div className="flex flex-col h-full">
+                <div className="flex items-center justify-between p-4 border-b border-gray-200">
+                  <h2 className="text-lg font-semibold text-gray-900">Properti</h2>
               <button 
                 onClick={() => setSelectedComponent(null)}
-                className="p-2 text-gray-500 hover:text-gray-700"
+                    className="text-gray-500 hover:text-gray-700"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
             </div>
-            <div className="p-4">
+                <div className="flex-1 overflow-y-auto p-4 pb-28">
               <ComponentProperties
                 selectedComponent={selectedComponent}
-                onUpdate={handleComponentUpdate}
+                    onUpdate={handleUpdateComponent}
                 onDelete={handleDeleteComponent}
-                isMobile={true}
+                    isMobile={isMobile}
               />
             </div>
           </div>
         </div>
       )}
     </div>
+      </div>
+    </DashboardLayout>
   );
 } 

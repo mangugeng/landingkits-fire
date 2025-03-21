@@ -21,7 +21,7 @@ interface LandingPage {
   customDomain?: string;
 }
 
-export default function PublicPage() {
+export default function DynamicPage() {
   const params = useParams();
   const [page, setPage] = useState<LandingPage | null>(null);
   const [loading, setLoading] = useState(true);
@@ -29,59 +29,23 @@ export default function PublicPage() {
   useEffect(() => {
     const fetchPage = async () => {
       try {
-        // Mendapatkan hostname dan pathname dari window.location
-        const hostname = window.location.hostname;
-        const pathname = window.location.pathname;
-        const isSubdomain = hostname.includes('landingkits.com') && hostname !== 'www.landingkits.com';
-        
-        let pagesRef = collection(db, 'landing_pages');
-        let q;
-
-        if (isSubdomain) {
-          // Jika mengakses via subdomain
-          const subdomain = hostname.split('.')[0];
-          q = query(
-            pagesRef, 
-            where('slug', '==', subdomain),
-            where('status', '==', 'published')
-          );
-        } else {
-          // Jika mengakses via path biasa
-          const slug = Array.isArray(params.slug) ? params.slug[0] : params.slug;
-          q = query(
-            pagesRef, 
-            where('slug', '==', slug),
-            where('status', '==', 'published')
-          );
-        }
+        const pagesRef = collection(db, 'landing_pages');
+        const q = query(
+          pagesRef,
+          where('slug', '==', params.slug),
+          where('status', '==', 'published')
+        );
 
         const querySnapshot = await getDocs(q);
-        
         if (!querySnapshot.empty) {
           const doc = querySnapshot.docs[0];
-          const data = doc.data() as LandingPage;
-          
-          // Jika mengakses via subdomain dan path tidak sesuai, redirect ke root subdomain
-          if (isSubdomain && pathname !== '/') {
-            window.location.href = `https://${data.slug}.landingkits.com`;
-            return;
-          }
-          
           setPage({
-            ...data,
-            id: doc.id
-          });
-        } else {
-          // Jika halaman tidak ditemukan dan mengakses via subdomain, redirect ke landingkits.com
-          if (isSubdomain) {
-            window.location.href = 'https://www.landingkits.com';
-            return;
-          }
-          toast.error('Halaman tidak ditemukan');
+            id: doc.id,
+            ...doc.data()
+          } as LandingPage);
         }
       } catch (error) {
         console.error('Error fetching page:', error);
-        toast.error('Gagal mengambil data landing page');
       } finally {
         setLoading(false);
       }
@@ -278,7 +242,7 @@ export default function PublicPage() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div>
       </div>
     );
   }
@@ -287,8 +251,8 @@ export default function PublicPage() {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Halaman Tidak Ditemukan</h1>
-          <p className="text-gray-600">Halaman yang Anda cari tidak ada atau belum dipublikasikan.</p>
+          <h1 className="text-4xl font-bold text-gray-900 mb-4">404</h1>
+          <p className="text-gray-600">Halaman tidak ditemukan</p>
         </div>
       </div>
     );

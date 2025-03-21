@@ -1,150 +1,107 @@
 import { NextResponse } from 'next/server';
-import { Invoice } from '../../../../lib/xendit';
-import { subscriptionPlans } from '../../../../lib/subscription-plans';
-import type { SubscriptionPlan } from '../../../../types/subscription';
-import type { CreateInvoiceOperationRequest, CreateInvoiceRequest } from '../../../../types/xendit';
+import { db } from '@/lib/firebase';
+import { collection, addDoc, doc, getDoc, updateDoc } from 'firebase/firestore';
+import Xendit from 'xendit-node';
+import { Transaction } from '@/types/transaction';
+import { subscriptionPlans } from '@/lib/subscription-plans';
+
+// Inisialisasi Xendit client
+const xenditClient = new Xendit({
+  secretKey: process.env.XENDIT_SECRET_KEY!
+});
+
+const { Invoice } = xenditClient;
 
 export async function POST(request: Request) {
   try {
-    console.log('Starting create invoice process...');
+    const { userId, planId, interval } = await request.json();
 
-    // Validasi environment variables
-    if (!process.env.XENDIT_SECRET_KEY) {
-      console.error('XENDIT_SECRET_KEY is not defined');
-      return NextResponse.json(
-        { error: 'Server configuration error: XENDIT_SECRET_KEY is not defined' },
-        { status: 500 }
-      );
+    // Validasi input
+    if (!userId || !planId || !interval) {
+      return NextResponse.json({ 
+        error: 'Data tidak lengkap' 
+      }, { status: 400 });
     }
 
-    if (!process.env.NEXT_PUBLIC_APP_URL) {
-      console.error('NEXT_PUBLIC_APP_URL is not defined');
-      return NextResponse.json(
-        { error: 'Server configuration error: NEXT_PUBLIC_APP_URL is not defined' },
-        { status: 500 }
-      );
+    // Ambil data user
+    const userDoc = await getDoc(doc(db, 'users', userId));
+    if (!userDoc.exists()) {
+      return NextResponse.json({ 
+        error: 'User tidak ditemukan' 
+      }, { status: 404 });
+    }
+    const userData = userDoc.data();
+
+    // Ambil data plan dari subscription plans yang sudah didefinisikan
+    const planData = subscriptionPlans.find(plan => plan.id === planId);
+    if (!planData) {
+      return NextResponse.json({ 
+        error: 'Plan tidak ditemukan' 
+      }, { status: 404 });
     }
 
-    console.log('Environment variables validated');
+    // Tentukan harga berdasarkan interval
+    const price = interval === 'MONTH' ? planData.price.monthly : planData.price.yearly;
 
-    const body = await request.json();
-    const { planId, interval, userId, email } = body;
+    // Generate external ID
+    const externalId = `${userId}-${planId}-${Date.now()}`;
 
-    console.log('Request body:', { planId, interval, userId, email });
+    // Buat transaksi di Firebase
+    const transaction: Omit<Transaction, 'id'> = {
+      userId,
+      planId,
+      amount: price,
+      status: 'PENDING',
+      externalId,
+      interval,
+      currency: 'IDR',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
 
-    // Validate required fields
-    if (!planId || !interval || !userId || !email) {
-      console.error('Missing required fields:', { planId, interval, userId, email });
-      return NextResponse.json(
-        { error: 'Missing required fields', details: { planId, interval, userId, email } },
-        { status: 400 }
-      );
-    }
+    const transactionRef = await addDoc(collection(db, 'transactions'), transaction);
 
-    console.log('Required fields validated');
-
-    // Find the selected plan
-    console.log('Available plans:', subscriptionPlans);
-    const plan: SubscriptionPlan | undefined = subscriptionPlans.find((p: SubscriptionPlan) => p.id === planId);
-    if (!plan) {
-      console.error('Invalid plan selected:', planId);
-      return NextResponse.json(
-        { error: 'Invalid plan selected', details: { planId, availablePlans: subscriptionPlans.map(p => p.id) } },
-        { status: 400 }
-      );
-    }
-
-    console.log('Plan found:', plan);
-
-    // Calculate amount based on interval
-    let amount;
-    if (typeof plan.price === 'number') {
-      amount = plan.price;
-    } else if (plan.price && typeof plan.price === 'object') {
-      amount = interval === 'MONTH' ? plan.price.monthly : plan.price.yearly;
-    } else {
-      console.error('Invalid price format:', plan.price);
-      return NextResponse.json(
-        { error: 'Invalid price format', details: { price: plan.price } },
-        { status: 400 }
-      );
-    }
-
-    if (!amount || amount <= 0) {
-      console.error('Invalid amount:', amount);
-      return NextResponse.json(
-        { error: 'Invalid amount', details: { amount, interval, price: plan.price } },
-        { status: 400 }
-      );
-    }
-
-    console.log('Amount calculated:', amount);
-
-    try {
-      const invoiceData: CreateInvoiceRequest = {
-        externalId: `sub_${userId}_${Date.now()}`,
-        amount,
-        payerEmail: email,
-        description: `Subscription to ${plan.name} Plan (${interval.toLowerCase()}ly)`,
-        invoiceDuration: '86400', // 24 hours
+    // Buat invoice di Xendit
+    const invoice = await Invoice.createInvoice({
+      data: {
+        externalId: externalId,
+        amount: price,
         currency: 'IDR',
-        successRedirectUrl: 'https://landingkits.com/dashboard?payment=success',
-        failureRedirectUrl: 'https://landingkits.com/dashboard?payment=failed',
-        items: [
-          {
-            name: `${plan.name} Plan - ${interval.toLowerCase()}ly subscription`,
-            quantity: 1,
-            price: amount,
-            category: 'Subscription'
-          }
-        ]
-      };
-
-      console.log('Creating invoice with data:', invoiceData);
-
-      const invoice = await Invoice.createInvoice({
-        data: invoiceData
-      });
-
-      console.log('Invoice created successfully:', invoice);
-
-      return NextResponse.json({
-        invoice_url: invoice.invoiceUrl,
-        invoice_id: invoice.id,
-        status: invoice.status
-      });
-    } catch (xenditError: any) {
-      console.error('Xendit API Error:', xenditError?.message || xenditError);
-      console.error('Xendit Error Details:', {
-        message: xenditError?.message,
-        code: xenditError?.code,
-        stack: xenditError?.stack,
-        data: xenditError?.data
-      });
-      return NextResponse.json(
-        { 
-          error: 'Failed to create Xendit invoice', 
-          details: xenditError?.message,
-          code: xenditError?.code,
-          data: xenditError?.data
+        payerEmail: userData.email,
+        description: `Langganan ${planData.name} - ${interval === 'MONTH' ? 'Bulanan' : 'Tahunan'}`,
+        customer: {
+          givenNames: userData.name || userData.email,
+          email: userData.email
         },
-        { status: 500 }
-      );
-    }
-  } catch (error: any) {
-    console.error('Error creating invoice:', error);
-    console.error('Error details:', {
-      message: error?.message,
-      stack: error?.stack
+        successRedirectUrl: `${process.env.NEXT_PUBLIC_APP_URL}/payment/success`,
+        failureRedirectUrl: `${process.env.NEXT_PUBLIC_APP_URL}/payment/failed`,
+        items: [{
+          name: planData.name,
+          quantity: 1,
+          price: price,
+          category: 'Subscription'
+        }]
+      }
     });
-    return NextResponse.json(
-      { 
-        error: 'Failed to create invoice',
-        details: error?.message,
-        stack: process.env.NODE_ENV === 'development' ? error?.stack : undefined
-      },
-      { status: 500 }
-    );
+
+    // Update transaksi dengan data invoice
+    await updateDoc(doc(db, 'transactions', transactionRef.id), {
+      metadata: {
+        invoiceUrl: invoice.invoiceUrl,
+        xenditInvoiceId: invoice.id
+      }
+    });
+
+    return NextResponse.json({
+      success: true,
+      invoiceUrl: invoice.invoiceUrl,
+      transactionId: transactionRef.id
+    });
+  } catch (error) {
+    console.error('Error creating invoice:', error);
+    return NextResponse.json({ 
+      error: 'Gagal membuat invoice' 
+    }, { status: 500 });
   }
 }
 
