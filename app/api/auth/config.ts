@@ -2,8 +2,17 @@ import GoogleProvider from 'next-auth/providers/google';
 import { FirestoreAdapter } from '@auth/firebase-adapter';
 import { cert } from 'firebase-admin/app';
 
+interface EnvVars {
+  FIREBASE_PROJECT_ID: string;
+  FIREBASE_CLIENT_EMAIL: string;
+  FIREBASE_PRIVATE_KEY: string;
+  GOOGLE_CLIENT_ID: string;
+  GOOGLE_CLIENT_SECRET: string;
+  NEXT_PUBLIC_FIREBASE_API_KEY: string;
+}
+
 // Validasi environment variables
-const validateEnvVars = () => {
+const validateEnvVars = (): EnvVars => {
   const required = {
     FIREBASE_PROJECT_ID: process.env.FIREBASE_PROJECT_ID,
     FIREBASE_CLIENT_EMAIL: process.env.FIREBASE_CLIENT_EMAIL,
@@ -11,7 +20,7 @@ const validateEnvVars = () => {
     GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
     GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
     NEXT_PUBLIC_FIREBASE_API_KEY: process.env.NEXT_PUBLIC_FIREBASE_API_KEY
-  } as const;
+  };
 
   const missing = Object.entries(required)
     .filter(([_, value]) => !value)
@@ -31,7 +40,8 @@ const validateEnvVars = () => {
     hasFirebaseApiKey: !!required.NEXT_PUBLIC_FIREBASE_API_KEY
   });
 
-  return required as Required<typeof required>;
+  // Type assertion karena kita sudah memvalidasi bahwa semua nilai ada
+  return required as EnvVars;
 };
 
 const envVars = validateEnvVars();
