@@ -2,6 +2,28 @@ import GoogleProvider from 'next-auth/providers/google';
 import { FirestoreAdapter } from '@auth/firebase-adapter';
 import { cert } from 'firebase-admin/app';
 
+// Validasi environment variables
+const requiredEnvVars = {
+  projectId: process.env.FIREBASE_PROJECT_ID,
+  clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+  privateKey: process.env.FIREBASE_PRIVATE_KEY
+};
+
+// Periksa apakah semua environment variables tersedia
+Object.entries(requiredEnvVars).forEach(([key, value]) => {
+  if (!value) {
+    throw new Error(`Missing environment variable: ${key}`);
+  }
+});
+
+// Log untuk debug
+console.log('Firebase Admin Config:', {
+  projectId: process.env.FIREBASE_PROJECT_ID,
+  clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+  privateKeyLength: process.env.FIREBASE_PRIVATE_KEY?.length
+});
+
+// Konfigurasi auth
 export const authConfig = {
   providers: [
     GoogleProvider({
