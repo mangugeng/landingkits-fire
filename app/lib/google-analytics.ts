@@ -1,9 +1,23 @@
 import { google } from 'googleapis';
 
-// Pastikan environment variables ada
-if (!process.env.GOOGLE_ANALYTICS_CLIENT_EMAIL || !process.env.GOOGLE_ANALYTICS_PRIVATE_KEY || !process.env.GOOGLE_ANALYTICS_PROPERTY_ID) {
-  throw new Error('Missing Google Analytics environment variables');
+// Validasi environment variables
+const requiredEnvVars = [
+  'GOOGLE_ANALYTICS_CLIENT_EMAIL',
+  'GOOGLE_ANALYTICS_PRIVATE_KEY',
+  'GOOGLE_ANALYTICS_PROPERTY_ID'
+];
+
+for (const envVar of requiredEnvVars) {
+  if (!process.env[envVar]) {
+    throw new Error(`Missing ${envVar}`);
+  }
 }
+
+// Log konfigurasi untuk debug
+console.log('Google Analytics Config:', {
+  clientEmail: process.env.GOOGLE_ANALYTICS_CLIENT_EMAIL,
+  propertyId: process.env.GOOGLE_ANALYTICS_PROPERTY_ID
+});
 
 const auth = new google.auth.GoogleAuth({
   credentials: {
@@ -20,8 +34,13 @@ const analytics = google.analyticsdata({
 
 export async function getAnalyticsData() {
   try {
+    const propertyId = process.env.GOOGLE_ANALYTICS_PROPERTY_ID;
+    if (!propertyId) {
+      throw new Error('Missing GOOGLE_ANALYTICS_PROPERTY_ID');
+    }
+
     const response = await analytics.properties.runReport({
-      property: `properties/${process.env.GOOGLE_ANALYTICS_PROPERTY_ID}`,
+      property: `properties/${propertyId}`,
       requestBody: {
         dateRanges: [
           {
