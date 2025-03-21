@@ -2,14 +2,16 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { signOut } from 'next-auth/react';
 import { 
-  HomeIcon, 
-  ChartBarIcon, 
-  GlobeAltIcon, 
-  CreditCardIcon, 
-  UserIcon, 
+  HomeIcon,
+  DocumentTextIcon,
+  ChartBarIcon,
+  GlobeAltIcon,
+  CreditCardIcon,
+  UserIcon,
   Cog6ToothIcon,
-  DocumentTextIcon
+  ArrowRightOnRectangleIcon
 } from '@heroicons/react/24/outline';
 
 const navigation = [
@@ -24,6 +26,12 @@ const navigation = [
 
 export default function DashboardNav() {
   const pathname = usePathname();
+
+  const handleLogout = () => {
+    signOut({
+      callbackUrl: '/home'
+    });
+  };
 
   return (
     <nav className="space-y-1">
@@ -49,6 +57,18 @@ export default function DashboardNav() {
           </Link>
         );
       })}
+      
+      {/* Logout Button */}
+      <button
+        onClick={handleLogout}
+        className="w-full mt-4 group flex items-center px-2 py-2 text-sm font-medium rounded-md text-red-600 hover:bg-red-50 hover:text-red-900"
+      >
+        <ArrowRightOnRectangleIcon
+          className="mr-3 h-5 w-5 flex-shrink-0 text-red-400 group-hover:text-red-500"
+          aria-hidden="true"
+        />
+        Keluar
+      </button>
     </nav>
   );
 } 

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { Bars3Icon, XMarkIcon } from '@heroicons/react/24/outline';
 import DashboardNav from './DashboardNav';
 
@@ -19,7 +20,9 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           <div className="fixed inset-0 bg-gray-600 bg-opacity-75" onClick={() => setSidebarOpen(false)} />
           <div className="fixed inset-y-0 left-0 flex w-64 flex-col bg-white">
             <div className="flex h-14 items-center justify-between px-4 border-b border-gray-200">
-              <span className="text-xl font-semibold">LandingKits</span>
+              <Link href="/home" className="text-lg font-semibold text-gray-900 hover:text-gray-600">
+                landingkits.com
+              </Link>
               <button
                 type="button"
                 className="-mr-2 p-2 rounded-md text-gray-500 hover:bg-gray-100"
@@ -40,7 +43,9 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         {/* Desktop sidebar */}
         <div className="hidden lg:flex lg:flex-col lg:w-64 lg:fixed lg:inset-y-0 lg:border-r lg:border-gray-200 lg:bg-white">
           <div className="flex h-14 items-center px-4 border-b border-gray-200">
-            <span className="text-xl font-semibold">LandingKits</span>
+            <Link href="/home" className="text-lg font-semibold text-gray-900 hover:text-gray-600">
+              landingkits.com
+            </Link>
           </div>
           <div className="flex-1 overflow-y-auto p-4">
             <DashboardNav />
@@ -58,7 +63,9 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             >
               <Bars3Icon className="h-6 w-6" />
             </button>
-            <span className="text-xl font-semibold">LandingKits</span>
+            <Link href="/home" className="text-lg font-semibold text-gray-900 hover:text-gray-600">
+              landingkits.com
+            </Link>
           </div>
 
           {/* Main content area */}

@@ -25,16 +25,13 @@ if (typeof window !== 'undefined') {
 }
 
 // Initialize Firestore
-const db = getFirestore(app);
+export const db = getFirestore(app);
 
 // Initialize Auth
 const auth = getAuth(app);
 
 // Export analytics
 export { analytics };
-
-// Export Firestore
-export { db };
 
 // Export Auth
 export { auth }; 

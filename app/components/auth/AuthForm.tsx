@@ -126,6 +126,8 @@ export default function AuthForm() {
         
         // Set cookie untuk menandakan user sudah login
         Cookies.set('user_login', 'true', { expires: 7 }); // Cookie berlaku 7 hari
+        Cookies.set('user_id', user.uid, { expires: 7 });
+        Cookies.set('user_email', user.email!, { expires: 7 });
         
         // Redirect ke dashboard
         router.push('/dashboard');
@@ -182,6 +184,8 @@ export default function AuthForm() {
       
       // Set cookie untuk menandakan user sudah login
       Cookies.set('user_login', 'true', { expires: 7 }); // Cookie berlaku 7 hari
+      Cookies.set('user_id', user.uid, { expires: 7 });
+      Cookies.set('user_email', user.email!, { expires: 7 });
       
       // Redirect ke dashboard
       router.push('/dashboard');
