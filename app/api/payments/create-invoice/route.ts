@@ -88,8 +88,8 @@ export async function POST(request: Request) {
         description: `Subscription to ${plan.name} Plan (${interval.toLowerCase()}ly)`,
         invoiceDuration: '86400', // 24 hours
         currency: 'IDR',
-        successRedirectUrl: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard?payment=success`,
-        failureRedirectUrl: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard?payment=failed`,
+        successRedirectUrl: 'https://landingkits.com/dashboard?payment=success',
+        failureRedirectUrl: 'https://landingkits.com/dashboard?payment=failed',
         items: [
           {
             name: `${plan.name} Plan - ${interval.toLowerCase()}ly subscription`,
