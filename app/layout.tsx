@@ -4,6 +4,8 @@ import './globals.css';
 import { Inter } from 'next/font/google';
 import LayoutWrapper from './components/LayoutWrapper';
 import { SessionProvider } from 'next-auth/react';
+import { Toaster } from 'sonner';
+import { AuthProvider } from './context/AuthContext';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -15,11 +17,14 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
-        <SessionProvider>
-          <LayoutWrapper>
-            {children}
-          </LayoutWrapper>
-        </SessionProvider>
+        <AuthProvider>
+          <SessionProvider>
+            <LayoutWrapper>
+              {children}
+            </LayoutWrapper>
+            <Toaster />
+          </SessionProvider>
+        </AuthProvider>
       </body>
     </html>
   );

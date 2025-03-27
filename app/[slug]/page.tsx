@@ -5,8 +5,9 @@ import { useParams } from 'next/navigation';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { toast } from 'react-hot-toast';
-import { ComponentData } from '../components/EditorComponents';
+import { ComponentData } from '@/app/types/editor';
 import { headers } from 'next/headers';
+import { CheckIcon } from '@heroicons/react/24/outline';
 
 interface LandingPage {
   id: string;
@@ -19,6 +20,13 @@ interface LandingPage {
   lastUpdated: string;
   slug: string;
   customDomain?: string;
+}
+
+interface FormField {
+  label: string;
+  type: 'text' | 'textarea' | 'email' | 'tel';
+  placeholder?: string;
+  required?: boolean;
 }
 
 export default function DynamicPage() {
@@ -58,72 +66,79 @@ export default function DynamicPage() {
     switch (component.type) {
       case 'heading':
         return (
-          <div className="text-4xl font-bold text-gray-900 mb-4">
+          <h2 className="text-3xl font-bold mb-4">
             {component.content}
-          </div>
+          </h2>
         );
       case 'paragraph':
         return (
-          <div className="text-lg text-gray-600 mb-4">
+          <p className="mb-4">
             {component.content}
-          </div>
+          </p>
         );
       case 'image':
         return (
           <div className="mb-4">
-            <img
-              src={component.content}
-              alt=""
-              className="w-full h-auto rounded-lg"
+            <img 
+              src={component.props?.src} 
+              alt={component.props?.alt || ''} 
+              className="max-w-full h-auto rounded-lg"
             />
           </div>
         );
       case 'button':
         return (
-          <div className="mb-4">
-            <button
-              className={`px-6 py-3 rounded-md text-white font-medium ${
-                component.props?.variant === 'primary'
-                  ? 'bg-blue-600 hover:bg-blue-700'
-                  : 'bg-gray-600 hover:bg-gray-700'
-              }`}
-            >
-              {component.content}
-            </button>
-          </div>
+          <button 
+            className={`px-6 py-2 rounded-lg ${component.props?.style || 'bg-blue-600 text-white'}`}
+          >
+            {component.content}
+          </button>
         );
       case 'form':
         return (
           <div className="mb-4 p-6 bg-gray-50 rounded-lg">
             <form className="space-y-4">
-              {component.props?.formFields?.map((field, index) => (
+              {(component.props?.formFields as FormField[])?.map((field, index) => (
                 <div key={index}>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     {field.label}
                   </label>
                   {field.type === 'textarea' ? (
                     <textarea
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                      className="w-full p-2 border rounded-lg"
                       placeholder={field.placeholder}
                       required={field.required}
                     />
                   ) : (
                     <input
                       type={field.type}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                      className="w-full p-2 border rounded-lg"
                       placeholder={field.placeholder}
                       required={field.required}
                     />
                   )}
                 </div>
               ))}
-              <button
-                type="submit"
-                className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-              >
-                Submit
-              </button>
             </form>
+          </div>
+        );
+      case 'testimonial':
+        return (
+          <div className="mb-4 bg-gray-50 p-6 rounded-lg">
+            <div className="flex items-center mb-4">
+              <img 
+                src={component.props?.testimonials?.[0]?.avatar} 
+                alt={component.props?.testimonials?.[0]?.name} 
+                className="w-12 h-12 rounded-full mr-4"
+              />
+              <div>
+                <h4 className="font-semibold">{component.props?.testimonials?.[0]?.name}</h4>
+                {component.props?.testimonials?.[0]?.role && (
+                  <p className="text-sm text-gray-600">{component.props?.testimonials?.[0]?.role}</p>
+                )}
+              </div>
+            </div>
+            <p className="text-gray-700">{component.props?.testimonials?.[0]?.content}</p>
           </div>
         );
       case 'cta':
@@ -138,43 +153,13 @@ export default function DynamicPage() {
       case 'features':
         return (
           <div className="mb-4 grid grid-cols-1 md:grid-cols-3 gap-6">
-            {component.props?.features?.map((feature, index) => (
+            {component.props?.features?.map((feature: { title: string; description: string; icon?: string }, index: number) => (
               <div key={index} className="p-6 bg-white rounded-lg shadow">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-8 w-8 text-blue-600 mb-4"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d={feature.icon}
-                  />
-                </svg>
+                {feature.icon && (
+                  <div className="text-4xl mb-4">{feature.icon}</div>
+                )}
                 <h3 className="text-xl font-semibold mb-2">{feature.title}</h3>
                 <p className="text-gray-600">{feature.description}</p>
-              </div>
-            ))}
-          </div>
-        );
-      case 'testimonial':
-        return (
-          <div className="mb-4 grid grid-cols-1 md:grid-cols-3 gap-6">
-            {component.props?.testimonials?.map((testimonial, index) => (
-              <div key={index} className="p-6 bg-white rounded-lg shadow">
-                <img
-                  src={testimonial.avatar}
-                  alt={testimonial.name}
-                  className="w-16 h-16 rounded-full mx-auto mb-4"
-                />
-                <p className="text-gray-600 mb-2">{testimonial.content}</p>
-                <div className="text-center">
-                  <p className="font-semibold">{testimonial.name}</p>
-                  <p className="text-sm text-gray-500">{testimonial.role}</p>
-                </div>
               </div>
             ))}
           </div>
@@ -183,44 +168,18 @@ export default function DynamicPage() {
         return (
           <div className="mb-4 grid grid-cols-1 md:grid-cols-3 gap-6">
             {component.props?.pricingPlans?.map((plan, index) => (
-              <div
-                key={index}
-                className={`p-6 rounded-lg ${
-                  plan.popular
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-white text-gray-900'
-                }`}
-              >
+              <div key={index} className={`p-6 rounded-lg ${plan.popular ? 'bg-blue-50 border-2 border-blue-500' : 'bg-white border'}`}>
                 <h3 className="text-xl font-semibold mb-2">{plan.name}</h3>
                 <p className="text-3xl font-bold mb-4">{plan.price}</p>
-                <ul className="space-y-2 mb-6">
-                  {plan.features.map((feature, i) => (
-                    <li key={i} className="flex items-center">
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        className="h-5 w-5 mr-2"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M5 13l4 4L19 7"
-                        />
-                      </svg>
+                <ul className="mb-6 space-y-2">
+                  {plan.features.map((feature, featureIndex) => (
+                    <li key={featureIndex} className="flex items-center">
+                      <CheckIcon className="w-5 h-5 text-green-500 mr-2" />
                       {feature}
                     </li>
                   ))}
                 </ul>
-                <button
-                  className={`w-full px-4 py-2 rounded-md ${
-                    plan.popular
-                      ? 'bg-white text-blue-600 hover:bg-gray-100'
-                      : 'bg-blue-600 text-white hover:bg-blue-700'
-                  }`}
-                >
+                <button className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
                   {plan.ctaText}
                 </button>
               </div>

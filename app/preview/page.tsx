@@ -15,6 +15,7 @@ interface LandingPage {
   slug: string;
   conversionRate?: number;
   createdAt: string;
+  isFeatured?: boolean;
 }
 
 export default function PreviewPage() {
@@ -27,7 +28,8 @@ export default function PreviewPage() {
         const pagesRef = collection(db, 'landing_pages');
         const q = query(
           pagesRef,
-          where('status', '==', 'published')
+          where('status', '==', 'published'),
+          where('isFeatured', '==', true)
         );
 
         const querySnapshot = await getDocs(q);

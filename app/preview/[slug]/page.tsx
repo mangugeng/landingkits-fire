@@ -5,7 +5,7 @@ import { useParams } from 'next/navigation';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../../../lib/firebase';
 import { toast } from 'react-hot-toast';
-import { ComponentData } from '../../../components/EditorComponents';
+import { ComponentData } from '@/app/types/editor';
 
 interface LandingPage {
   id: string;

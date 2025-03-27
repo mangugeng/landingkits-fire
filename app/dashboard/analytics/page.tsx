@@ -1,51 +1,75 @@
-'use client';
+"use client";
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import DashboardLayout from '../../../components/dashboard/DashboardLayout';
-import { db, auth } from '../../../lib/firebase';
-import { collection, getDocs, query, where, orderBy } from 'firebase/firestore';
+import { auth, db } from '@/lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
+import { collection, query, where, getDocs, orderBy, limit } from 'firebase/firestore';
+import { useRouter } from 'next/navigation';
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { FiUsers, FiEye, FiTrendingUp, FiActivity, FiBarChart2, FiPieChart, FiGlobe } from 'react-icons/fi';
 import {
-  ChartBarIcon,
-  EyeIcon,
-  UserGroupIcon,
-  ArrowTrendingUpIcon,
-  ArrowUpIcon,
-} from '@heroicons/react/24/outline';
-import { toast } from 'react-hot-toast';
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  PieChart,
+  Pie,
+  Cell
+} from 'recharts';
 
 interface LandingPage {
   id: string;
   title: string;
-  views: number;
-  conversions: number;
-  conversionRate: number;
-  status: 'published' | 'draft';
+  description: string;
+  slug: string;
+  userId: string;
+  content: any[];
+  createdAt: string | { seconds: number; nanoseconds: number };
+  updatedAt: { seconds: number; nanoseconds: number };
+  status: 'draft' | 'published';
+  hasUnpublishedChanges?: boolean;
+  isFeatured?: boolean;
+  analytics?: {
+    views: number;
+    conversions: number;
+    visitors: number;
+  };
+  publishedAt?: string | { seconds: number; nanoseconds: number };
 }
 
 interface AnalyticsData {
   totalViews: number;
   totalConversions: number;
-  averageConversionRate: number;
-  publishedPages: number;
-  topPages: LandingPage[];
-  viewsTrend: number;
-  conversionsTrend: number;
+  conversionRate: number;
+  viewsTrend: Array<{ date: string; views: number }>;
+  conversionsByPage: Array<{ name: string; conversions: number }>;
+  recentPages: Array<{
+    title: string;
+    views: number;
+    conversions: number;
+    conversionRate: number;
+  }>;
 }
 
-export default function Analytics() {
+const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8'];
+
+export default function AnalyticsPage() {
   const router = useRouter();
-  const [isLoading, setIsLoading] = useState(true);
   const [analyticsData, setAnalyticsData] = useState<AnalyticsData>({
     totalViews: 0,
     totalConversions: 0,
-    averageConversionRate: 0,
-    publishedPages: 0,
-    topPages: [],
-    viewsTrend: 0,
-    conversionsTrend: 0,
+    conversionRate: 0,
+    viewsTrend: [],
+    conversionsByPage: [],
+    recentPages: []
   });
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -65,208 +89,229 @@ export default function Analytics() {
       const q = query(
         landingPagesRef,
         where('userId', '==', userId),
-        orderBy('views', 'desc')
+        orderBy('createdAt', 'desc')
       );
+      
       const querySnapshot = await getDocs(q);
-
       const pages = querySnapshot.docs.map(doc => ({
         id: doc.id,
-        ...doc.data(),
-        conversionRate: doc.data().views > 0 
-          ? (doc.data().conversions / doc.data().views) * 100 
-          : 0
+        ...doc.data()
       })) as LandingPage[];
 
-      const totalViews = pages.reduce((sum, page) => sum + page.views, 0);
-      const totalConversions = pages.reduce((sum, page) => sum + page.conversions, 0);
-      const publishedPages = pages.filter(page => page.status === 'published').length;
-      const averageConversionRate = totalViews > 0 
-        ? (totalConversions / totalViews) * 100 
-        : 0;
+      // Hitung total views dan conversions
+      const totalViews = pages.reduce((sum, page) => sum + (page.analytics?.views || 0), 0);
+      const totalConversions = pages.reduce((sum, page) => sum + (page.analytics?.conversions || 0), 0);
+      const conversionRate = totalViews > 0 ? (totalConversions / totalViews) * 100 : 0;
+
+      // Generate views trend (7 hari terakhir)
+      const today = new Date();
+      const viewsTrend = Array.from({ length: 7 }, (_, i) => {
+        const date = new Date(today);
+        date.setDate(date.getDate() - i);
+        return {
+          date: date.toLocaleDateString('id-ID', { weekday: 'short' }),
+          views: Math.floor(Math.random() * 100) // Untuk demo, nanti bisa diganti dengan data real
+        };
+      }).reverse();
+
+      // Generate conversions by page
+      const conversionsByPage = pages.map(page => ({
+        name: page.title,
+        conversions: page.analytics?.conversions || 0
+      }));
+
+      // Generate recent pages data
+      const recentPages = pages.map(page => ({
+        title: page.title,
+        views: page.analytics?.views || 0,
+        conversions: page.analytics?.conversions || 0,
+        conversionRate: page.analytics?.views ? (page.analytics.conversions / page.analytics.views) * 100 : 0
+      }));
 
       setAnalyticsData({
         totalViews,
         totalConversions,
-        averageConversionRate,
-        publishedPages,
-        topPages: pages.slice(0, 5),
-        viewsTrend: 15.7,
-        conversionsTrend: 8.2,
+        conversionRate,
+        viewsTrend,
+        conversionsByPage,
+        recentPages
       });
     } catch (error) {
-      console.error('Error fetching analytics:', error);
-      toast.error('Gagal mengambil data analytics');
+      console.error('Error fetching analytics data:', error);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const formatNumber = (num: number): string => {
-    return new Intl.NumberFormat('id-ID').format(num);
-  };
-
-  const formatPercentage = (num: number): string => {
-    return num.toFixed(1) + '%';
-  };
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900"></div>
+      </div>
+    );
+  }
 
   return (
-    <DashboardLayout>
-      <div className="flex-1 overflow-y-auto">
-        <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
-          {/* Header */}
-          <div className="mb-6">
+    <div className="container mx-auto py-8">
+      {/* Header */}
+      <div className="mb-6 lg:mb-8">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
             <h1 className="text-2xl font-bold text-gray-900">Analytics</h1>
-            <p className="mt-1 text-sm text-gray-500">Pantau performa landing page Anda</p>
+            <p className="mt-1 text-sm text-gray-500">
+              Pantau performa landing page Anda
+            </p>
           </div>
+        </div>
+      </div>
 
-          {/* Stats Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-            {/* Total Views */}
-            <div className="bg-white rounded-lg border border-gray-100 shadow-sm p-4">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <div className="p-2 bg-blue-50 rounded-lg">
-                    <EyeIcon className="h-6 w-6 text-blue-600" />
-                  </div>
-                </div>
-                <div className="ml-4 flex-1">
-                  <h3 className="text-sm font-medium text-gray-500">Total Views</h3>
-                  <div className="mt-1 flex items-baseline">
-                    <p className="text-2xl font-semibold text-gray-900">
-                      {formatNumber(analyticsData.totalViews)}
-                    </p>
-                    <p className="ml-2 flex items-baseline text-sm font-semibold text-green-600">
-                      <ArrowUpIcon className="self-center flex-shrink-0 h-4 w-4 text-green-500" />
-                      <span className="sr-only">Increased by</span>
-                      {analyticsData.viewsTrend}%
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <Card className="p-6">
+          <h3 className="text-sm font-medium text-gray-500">Total Views</h3>
+          <p className="mt-2 text-3xl font-bold text-gray-900">{analyticsData.totalViews}</p>
+        </Card>
+        <Card className="p-6">
+          <h3 className="text-sm font-medium text-gray-500">Total Conversions</h3>
+          <p className="mt-2 text-3xl font-bold text-gray-900">{analyticsData.totalConversions}</p>
+        </Card>
+        <Card className="p-6">
+          <h3 className="text-sm font-medium text-gray-500">Conversion Rate</h3>
+          <p className="mt-2 text-3xl font-bold text-gray-900">{analyticsData.conversionRate.toFixed(2)}%</p>
+        </Card>
+        <Card className="p-6">
+          <h3 className="text-sm font-medium text-gray-500">Active Pages</h3>
+          <p className="mt-2 text-3xl font-bold text-gray-900">{analyticsData.recentPages.length}</p>
+        </Card>
+      </div>
 
-            {/* Total Conversions */}
-            <div className="bg-white rounded-lg border border-gray-100 shadow-sm p-4">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <div className="p-2 bg-green-50 rounded-lg">
-                    <UserGroupIcon className="h-6 w-6 text-green-600" />
-                  </div>
-                </div>
-                <div className="ml-4 flex-1">
-                  <h3 className="text-sm font-medium text-gray-500">Total Conversions</h3>
-                  <div className="mt-1 flex items-baseline">
-                    <p className="text-2xl font-semibold text-gray-900">
-                      {formatNumber(analyticsData.totalConversions)}
-                    </p>
-                    <p className="ml-2 flex items-baseline text-sm font-semibold text-green-600">
-                      <ArrowUpIcon className="self-center flex-shrink-0 h-4 w-4 text-green-500" />
-                      <span className="sr-only">Increased by</span>
-                      {analyticsData.conversionsTrend}%
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
+      {/* Charts */}
+      <Tabs defaultValue="overview" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="sales">Penjualan</TabsTrigger>
+          <TabsTrigger value="users">Pengguna</TabsTrigger>
+        </TabsList>
 
-            {/* Conversion Rate */}
-            <div className="bg-white rounded-lg border border-gray-100 shadow-sm p-4">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <div className="p-2 bg-purple-50 rounded-lg">
-                    <ArrowTrendingUpIcon className="h-6 w-6 text-purple-600" />
-                  </div>
-                </div>
-                <div className="ml-4 flex-1">
-                  <h3 className="text-sm font-medium text-gray-500">Conversion Rate</h3>
-                  <div className="mt-1 flex items-baseline">
-                    <p className="text-2xl font-semibold text-gray-900">
-                      {formatPercentage(analyticsData.averageConversionRate)}
-                    </p>
-                    <p className="ml-2 flex items-baseline text-sm font-semibold text-green-600">
-                      <ArrowUpIcon className="self-center flex-shrink-0 h-4 w-4 text-green-500" />
-                      <span className="sr-only">Increased by</span>
-                      2.1%
-                    </p>
-                  </div>
-                </div>
-              </div>
+        <TabsContent value="overview" className="space-y-4">
+          <Card className="p-6">
+            <h3 className="text-lg font-medium text-gray-900 mb-4">Views Trend</h3>
+            <div className="h-[300px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={analyticsData.viewsTrend}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="date" />
+                  <YAxis />
+                  <Tooltip />
+                  <Line type="monotone" dataKey="views" stroke="#8884d8" />
+                </LineChart>
+              </ResponsiveContainer>
             </div>
+          </Card>
 
-            {/* Published Pages */}
-            <div className="bg-white rounded-lg border border-gray-100 shadow-sm p-4">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <div className="p-2 bg-yellow-50 rounded-lg">
-                    <ChartBarIcon className="h-6 w-6 text-yellow-600" />
-                  </div>
-                </div>
-                <div className="ml-4 flex-1">
-                  <h3 className="text-sm font-medium text-gray-500">Published Pages</h3>
-                  <div className="mt-1 flex items-baseline">
-                    <p className="text-2xl font-semibold text-gray-900">
-                      {analyticsData.publishedPages}
-                    </p>
-                    <p className="ml-2 text-sm text-gray-500">aktif</p>
-                  </div>
-                </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Card className="p-6">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">Conversions by Page</h3>
+              <div className="h-[300px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={analyticsData.conversionsByPage}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="name" />
+                    <YAxis />
+                    <Tooltip />
+                    <Bar dataKey="conversions" fill="#8884d8" />
+                  </BarChart>
+                </ResponsiveContainer>
               </div>
-            </div>
+            </Card>
+
+            <Card className="p-6">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">Conversion Distribution</h3>
+              <div className="h-[300px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={analyticsData.conversionsByPage}
+                      dataKey="conversions"
+                      nameKey="name"
+                      cx="50%"
+                      cy="50%"
+                      outerRadius={100}
+                      label
+                    >
+                      {analyticsData.conversionsByPage.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            </Card>
           </div>
+        </TabsContent>
 
-          {/* Top Pages Table */}
-          <div className="bg-white rounded-lg border border-gray-100 shadow-sm overflow-hidden">
-            <div className="px-4 py-5 border-b border-gray-200">
-              <h3 className="text-lg font-medium text-gray-900">Landing Page Terpopuler</h3>
-            </div>
+        <TabsContent value="sales">
+          <Card className="p-6">
+            <h3 className="text-lg font-medium text-gray-900 mb-4">Recent Pages</h3>
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
+                <thead>
                   <tr>
-                    <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Judul
                     </th>
-                    <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Views
                     </th>
-                    <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Conversions
                     </th>
-                    <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Conversion Rate
                     </th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {analyticsData.topPages.map((page) => (
-                    <tr key={page.id} className="hover:bg-gray-50">
-                      <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                  {analyticsData.recentPages.map((page, index) => (
+                    <tr key={index}>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                         {page.title}
                       </td>
-                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {formatNumber(page.views)}
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {page.views}
                       </td>
-                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {formatNumber(page.conversions)}
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {page.conversions}
                       </td>
-                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {formatPercentage(page.conversionRate)}
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {page.conversionRate.toFixed(2)}%
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
-          </div>
-        </div>
-      </div>
+          </Card>
+        </TabsContent>
 
-      {/* Loading State */}
-      {isLoading && (
-        <div className="fixed inset-0 bg-white bg-opacity-75 flex items-center justify-center z-50">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
-        </div>
-      )}
-    </DashboardLayout>
+        <TabsContent value="users">
+          <Card className="p-6">
+            <h3 className="text-lg font-medium text-gray-900 mb-4">User Growth</h3>
+            <div className="h-[300px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={analyticsData.viewsTrend}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="date" />
+                  <YAxis />
+                  <Tooltip />
+                  <Line type="monotone" dataKey="views" stroke="#82ca9d" />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </Card>
+        </TabsContent>
+      </Tabs>
+    </div>
   );
 } 

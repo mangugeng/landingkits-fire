@@ -1,9 +1,9 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import { auth } from '@/lib/firebase';
 import { sendEmailVerification, applyActionCode } from 'firebase/auth';
 import { sendMail } from '@/lib/mail';
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
     const { user } = await request.json();
     
@@ -43,9 +43,9 @@ export async function POST(request: Request) {
 }
 
 // Endpoint untuk memverifikasi email
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
+    const searchParams = request.nextUrl.searchParams;
     const code = searchParams.get('code');
 
     if (!code) {

@@ -3,15 +3,25 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, getDoc, updateDoc, increment, Timestamp, arrayUnion } from 'firebase/firestore';
 import { db } from './lib/firebase';
 import { BlogPost } from './types/blog';
 import { FiArrowRight } from 'react-icons/fi';
 import { toast } from 'react-hot-toast';
-import { ComponentData } from './components/EditorComponents';
+import { ComponentData } from './types/editor';
 import PricingSection from './components/PricingSection';
 import BlogCard from './components/BlogCard';
 import { getLatestPosts } from './lib/blog';
+import ViewTracker from '@/app/components/analytics/ViewTracker';
+import { 
+  trackRegistration, 
+  trackPurchase, 
+  trackDownload, 
+  trackContact, 
+  trackSubscribe, 
+  trackShare, 
+  trackCTAClick 
+} from '@/app/components/analytics/Tracking';
 
 interface LandingPage {
   id: string;
@@ -21,12 +31,23 @@ interface LandingPage {
   status: 'draft' | 'published';
   userId: string;
   createdAt: string;
-  lastUpdated: string;
+  updatedAt: string;
   slug: string;
   customDomain?: string;
+  analytics?: {
+    views: number;
+    conversions: number;
+    visitors: number;
+    lastVisit?: Timestamp;
+    visitHistory?: Array<{
+      timestamp: Timestamp;
+      type: 'view' | 'conversion';
+      eventType?: string;
+    }>;
+  };
 }
 
-const renderComponent = (component: ComponentData) => {
+const renderComponent = (component: ComponentData, pageData: LandingPage) => {
   switch (component.type) {
     case 'heading':
       return (
@@ -59,6 +80,8 @@ const renderComponent = (component: ComponentData) => {
                 ? 'bg-blue-600 hover:bg-blue-700'
                 : 'bg-gray-600 hover:bg-gray-700'
             }`}
+            data-cta={component.props?.ctaType || 'default'}
+            onClick={() => trackCTAClick(pageData.id)}
           >
             {component.content}
           </button>
@@ -67,7 +90,25 @@ const renderComponent = (component: ComponentData) => {
     case 'form':
       return (
         <div className="mb-4 p-6 bg-gray-50 rounded-lg">
-          <form className="space-y-4">
+          <form 
+            className="space-y-4"
+            data-form-type={component.props?.formType || 'contact'}
+            onSubmit={(e) => {
+              e.preventDefault();
+              const formType = component.props?.formType || 'contact';
+              switch(formType) {
+                case 'registration':
+                  trackRegistration(pageData.id);
+                  break;
+                case 'contact':
+                  trackContact(pageData.id);
+                  break;
+                case 'subscribe':
+                  trackSubscribe(pageData.id);
+                  break;
+              }
+            }}
+          >
             {component.props?.formFields?.map((field, index) => (
               <div key={index}>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -102,7 +143,11 @@ const renderComponent = (component: ComponentData) => {
       return (
         <div className="mb-4 p-8 bg-blue-600 text-white rounded-lg text-center">
           <h3 className="text-2xl font-bold mb-2">{component.content}</h3>
-          <button className="mt-4 px-6 py-2 bg-white text-blue-600 rounded-md hover:bg-gray-100">
+          <button 
+            className="mt-4 px-6 py-2 bg-white text-blue-600 rounded-md hover:bg-gray-100"
+            data-cta={component.props?.ctaType || 'default'}
+            onClick={() => trackCTAClick(pageData.id)}
+          >
             Get Started
           </button>
         </div>
@@ -186,7 +231,11 @@ const renderComponent = (component: ComponentData) => {
                   </li>
                 ))}
               </ul>
-              <button className="w-full px-4 py-2 bg-white text-blue-600 rounded-md hover:bg-gray-100">
+              <button 
+                className="w-full px-4 py-2 bg-white text-blue-600 rounded-md hover:bg-gray-100"
+                data-cta="purchase"
+                onClick={() => trackPurchase(pageData.id)}
+              >
                 {plan.ctaText}
               </button>
             </div>
@@ -208,14 +257,15 @@ export default function RootPage() {
     const handleSubdomain = async () => {
       try {
         const hostname = window.location.hostname;
-        const isSubdomain = hostname.includes('landingkits.com') && hostname !== 'www.landingkits.com';
+        const isSubdomain = hostname.includes('landingkits.com') && hostname !== 'landingkits.com';
 
         if (isSubdomain) {
-          setIsSubdomain(true);
           const subdomain = hostname.split('.')[0];
-          const pagesRef = collection(db, 'landing_pages');
+          console.log('Detected subdomain:', subdomain);
+
+          const landingPagesRef = collection(db, 'landing_pages');
           const q = query(
-            pagesRef,
+            landingPagesRef,
             where('slug', '==', subdomain),
             where('status', '==', 'published')
           );
@@ -223,10 +273,31 @@ export default function RootPage() {
           const querySnapshot = await getDocs(q);
           if (!querySnapshot.empty) {
             const doc = querySnapshot.docs[0];
+            const data = doc.data();
             setPageData({
               id: doc.id,
-              ...doc.data()
-            } as LandingPage);
+              title: data.title,
+              description: data.description,
+              content: data.content,
+              status: data.status,
+              userId: data.userId,
+              slug: data.slug,
+              createdAt: data.createdAt?.toDate().toISOString(),
+              updatedAt: data.updatedAt?.toDate().toISOString(),
+              analytics: data.analytics
+            });
+
+            // Update analytics
+            const now = Timestamp.now();
+            await updateDoc(doc.ref, {
+              'analytics.views': increment(1),
+              'analytics.visitors': increment(1),
+              'analytics.lastVisit': now,
+              'analytics.visitHistory': arrayUnion({
+                timestamp: now,
+                type: 'view'
+              })
+            });
           } else {
             // Halaman tidak ditemukan, redirect ke www
             window.location.href = 'https://www.landingkits.com';
@@ -235,6 +306,8 @@ export default function RootPage() {
       } catch (error) {
         console.error('Error handling subdomain:', error);
         toast.error('Terjadi kesalahan');
+      } finally {
+        setIsLoading(false);
       }
     };
 
@@ -248,26 +321,35 @@ export default function RootPage() {
         setPosts(fetchedPosts);
       } catch (error) {
         console.error('Error fetching posts:', error);
-      } finally {
-        setIsLoading(false);
       }
     };
 
     fetchPosts();
   }, []);
 
-  // Jika ini adalah subdomain dan data halaman ditemukan, tampilkan konten landing page
-  if (isSubdomain && pageData) {
+  if (isLoading) {
     return (
-      <div className="min-h-screen">
-        {/* Render konten landing page dari pageData */}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          {pageData.content.map((component, index) => (
-            <div key={index}>
-              {renderComponent(component)}
-            </div>
-          ))}
-        </div>
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      </div>
+    );
+  }
+
+  if (pageData) {
+    console.log('Rendering landing page with data:', pageData);
+    return (
+      <div className="min-h-screen bg-white">
+        <ViewTracker slug={pageData.slug} userId={pageData.userId} />
+        <main>
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+            {/* Render konten landing page dari pageData */}
+            {pageData.content.map((component, index) => (
+              <div key={index}>
+                {renderComponent(component, pageData)}
+              </div>
+            ))}
+          </div>
+        </main>
       </div>
     );
   }

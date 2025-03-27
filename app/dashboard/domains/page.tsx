@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import { toast } from 'react-hot-toast';
-import DashboardLayout from '../../components/dashboard/DashboardLayout';
 
 interface Domain {
   id: string;
@@ -47,7 +46,7 @@ export default function DomainsPage() {
     try {
       // Simulasi API call
       await new Promise(resolve => setTimeout(resolve, 1000));
-      
+
       const domain: Domain = {
         id: Date.now().toString(),
         name: newDomain,
@@ -77,7 +76,7 @@ export default function DomainsPage() {
     try {
       // Simulasi API call
       await new Promise(resolve => setTimeout(resolve, 1000));
-      
+
       setDomains(domains.filter(domain => domain.id !== id));
       toast.success('Domain berhasil dihapus');
     } catch (error) {
@@ -88,7 +87,7 @@ export default function DomainsPage() {
   };
 
   return (
-    <DashboardLayout>
+    <>
       {/* Header */}
       <div className="mb-6 lg:mb-8">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -153,13 +152,12 @@ export default function DomainsPage() {
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                      domain.status === 'active' ? 'bg-green-100 text-green-800' :
-                      domain.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                      'bg-red-100 text-red-800'
-                    }`}>
+                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${domain.status === 'active' ? 'bg-green-100 text-green-800' :
+                        domain.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                          'bg-red-100 text-red-800'
+                      }`}>
                       {domain.status === 'active' ? 'Aktif' :
-                       domain.status === 'pending' ? 'Pending' : 'Error'}
+                        domain.status === 'pending' ? 'Pending' : 'Error'}
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -197,7 +195,7 @@ export default function DomainsPage() {
                   </svg>
                 </button>
               </div>
-              
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <p className="text-xs text-gray-500">Tipe</p>
@@ -207,13 +205,12 @@ export default function DomainsPage() {
                 </div>
                 <div>
                   <p className="text-xs text-gray-500">Status</p>
-                  <span className={`mt-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                    domain.status === 'active' ? 'bg-green-100 text-green-800' :
-                    domain.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                    'bg-red-100 text-red-800'
-                  }`}>
+                  <span className={`mt-1 inline-flex text-xs leading-5 font-semibold rounded-full ${domain.status === 'active' ? 'bg-green-100 text-green-800' :
+                      domain.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                        'bg-red-100 text-red-800'
+                    }`}>
                     {domain.status === 'active' ? 'Aktif' :
-                     domain.status === 'pending' ? 'Pending' : 'Error'}
+                      domain.status === 'pending' ? 'Pending' : 'Error'}
                   </span>
                 </div>
                 <div>
@@ -285,6 +282,6 @@ export default function DomainsPage() {
           </div>
         </div>
       )}
-    </DashboardLayout>
+    </>
   );
 } 

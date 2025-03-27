@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
-import DashboardLayout from '../../components/dashboard/DashboardLayout';
 import Cookies from 'js-cookie';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
@@ -65,11 +64,11 @@ function TransactionHistoryTable({ transactions, plans }: { transactions: Transa
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
-                    ${transaction.status === 'SUCCESS' ? 'bg-green-100 text-green-800' : 
-                      transaction.status === 'PENDING' ? 'bg-yellow-100 text-yellow-800' : 
-                      'bg-red-100 text-red-800'}`}>
+                    ${transaction.status === 'SUCCESS' ? 'bg-green-100 text-green-800' :
+                      transaction.status === 'PENDING' ? 'bg-yellow-100 text-yellow-800' :
+                        'bg-red-100 text-red-800'}`}>
                     {transaction.status === 'SUCCESS' ? 'Berhasil' :
-                     transaction.status === 'PENDING' ? 'Menunggu' : 'Gagal'}
+                      transaction.status === 'PENDING' ? 'Menunggu' : 'Gagal'}
                   </span>
                 </td>
               </tr>
@@ -200,11 +199,11 @@ export default function SubscriptionPage() {
   useEffect(() => {
     const fetchTransactions = async () => {
       if (!userId) return;
-      
+
       try {
         const response = await fetch(`/api/payments/history?userId=${userId}`);
         if (!response.ok) throw new Error('Failed to fetch transactions');
-        
+
         const data = await response.json();
         setTransactions(data.transactions);
       } catch (error) {
@@ -294,128 +293,87 @@ export default function SubscriptionPage() {
   };
 
   return (
-    <DashboardLayout>
+    <>
       {/* Header */}
       <div className="mb-6 lg:mb-8">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Langganan</h1>
+            <h1 className="text-2xl font-bold text-gray-900">Subscription</h1>
             <p className="mt-1 text-sm text-gray-500">
-              Pilih paket yang sesuai dengan kebutuhan Anda
+              Kelola subscription dan pembayaran Anda
             </p>
-          </div>
-          <div className="flex items-center space-x-2">
-            <button
-              onClick={() => setSelectedInterval('monthly')}
-              className={`px-4 py-2 text-sm font-medium rounded-md ${
-                selectedInterval === 'monthly'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              Bulanan
-            </button>
-            <button
-              onClick={() => setSelectedInterval('yearly')}
-              className={`px-4 py-2 text-sm font-medium rounded-md ${
-                selectedInterval === 'yearly'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              Tahunan
-            </button>
           </div>
         </div>
       </div>
 
-      {/* Available Plans */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {plans.map((plan) => (
-          <div
-            key={plan.id}
-            className={`relative rounded-lg border ${
-              plan.isPopular ? 'border-blue-500 shadow-lg' : 'border-gray-200'
-            } p-6`}
-          >
-            {plan.isPopular && (
-              <span className="absolute top-0 right-0 -mt-3 bg-blue-600 text-white px-3 py-1 rounded-full text-xs font-medium">
-                Terpopuler
-              </span>
-            )}
-            <div className="mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">{plan.name}</h3>
-              <p className="text-sm text-gray-500">{plan.description}</p>
-              <p className="mt-4 text-3xl font-bold text-gray-900">
-                {plan.price === 'Custom' ? (
-                  'Custom'
-                ) : (
-                  <>
-                    {plan.price[selectedInterval] === 0 ? (
-                      'Gratis'
-                    ) : (
-                      <>
-                        Rp {plan.price[selectedInterval].toLocaleString('id-ID')}
-                        <span className="text-base font-normal text-gray-500">
-                          /{selectedInterval === 'monthly' ? 'bulan' : 'tahun'}
-                        </span>
-                      </>
-                    )}
-                  </>
-                )}
-              </p>
-              {selectedInterval === 'yearly' && plan.price !== 'Custom' && plan.price.yearly > 0 && (
-                <p className="mt-1 text-sm text-green-600">
-                  Hemat 20% dengan berlangganan tahunan
-                </p>
-              )}
-            </div>
-            <ul className="space-y-3 mb-6">
-              {plan.features.map((feature, index) => (
-                <li key={index} className="flex items-start">
-                  <svg className="h-5 w-5 text-green-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
-                  <span className="text-sm text-gray-600">{feature}</span>
-                </li>
-              ))}
-              <li className="pt-3">
-                <button
-                  className="text-sm text-blue-600 hover:text-blue-700"
-                  onClick={() => {/* TODO: Show full features */}}
-                >
-                  Selengkapnya
-                </button>
-              </li>
-            </ul>
-            <button
-              onClick={() => handleSubscribe(plan)}
-              disabled={isLoading || currentPlan.id === plan.id}
-              className={`w-full inline-flex justify-center items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 ${
-                currentPlan.id === plan.id
-                  ? 'bg-gray-400 cursor-not-allowed'
-                  : plan.isPopular
-                  ? 'bg-blue-600 hover:bg-blue-700'
-                  : 'bg-gray-600 hover:bg-gray-700'
-              }`}
+      {/* Content */}
+      <div className="space-y-8">
+        {/* Plans */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {plans.map((plan) => (
+            <div
+              key={plan.id}
+              className={`bg-white rounded-lg shadow-sm border ${plan.isPopular ? 'border-blue-500' : 'border-gray-200'
+                } p-6`}
             >
-              {isLoading ? (
-                <div className="flex items-center">
-                  <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white mr-2"></div>
-                  Memproses...
-                </div>
-              ) : currentPlan.id === plan.id ? (
-                'Plan Saat Ini'
-              ) : (
-                plan.buttonText
+              {plan.isPopular && (
+                <span className="inline-block px-3 py-1 text-xs font-semibold text-blue-600 bg-blue-50 rounded-full mb-4">
+                  Paling Populer
+                </span>
               )}
-            </button>
-          </div>
-        ))}
-      </div>
+              <h3 className="text-lg font-semibold text-gray-900">{plan.name}</h3>
+              <p className="mt-2 text-sm text-gray-500">{plan.description}</p>
+              <div className="mt-4">
+                <span className="text-2xl font-bold text-gray-900">
+                  {typeof plan.price === 'object' ? (
+                    <>
+                      Rp {plan.price[selectedInterval].toLocaleString('id-ID')}
+                      <span className="text-sm font-normal text-gray-500">
+                        /{selectedInterval === 'monthly' ? 'bulan' : 'tahun'}
+                      </span>
+                    </>
+                  ) : (
+                    'Custom'
+                  )}
+                </span>
+              </div>
+              <ul className="mt-6 space-y-4">
+                {plan.features.map((feature, index) => (
+                  <li key={index} className="flex items-start">
+                    <svg
+                      className="h-5 w-5 text-green-500 mr-2"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M5 13l4 4L19 7"
+                      />
+                    </svg>
+                    <span className="text-sm text-gray-600">{feature}</span>
+                  </li>
+                ))}
+              </ul>
+              <button
+                onClick={() => handleSubscribe(plan)}
+                disabled={isLoading}
+                className={`mt-8 w-full px-4 py-2 rounded-md text-sm font-medium ${plan.isPopular
+                    ? 'bg-blue-600 text-white hover:bg-blue-700'
+                    : 'bg-gray-100 text-gray-900 hover:bg-gray-200'
+                  } focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50`}
+              >
+                {isLoading ? 'Memproses...' : plan.buttonText}
+              </button>
+            </div>
+          ))}
+        </div>
 
-      {/* Transaction History */}
-      <TransactionHistoryTable transactions={transactions} plans={plans} />
-    </DashboardLayout>
+        {/* Transaction History */}
+        <TransactionHistoryTable transactions={transactions} plans={plans} />
+      </div>
+    </>
   );
 } 

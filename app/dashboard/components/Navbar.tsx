@@ -12,6 +12,7 @@ export default function Navbar() {
   const navigation = [
     { name: 'Dashboard', href: '/dashboard' },
     { name: 'Landing Pages', href: '/dashboard/pages' },
+    { name: 'Pesan', href: '/dashboard/messages' },
     { name: 'Berlangganan', href: '/dashboard/subscription' },
     { name: 'Pengaturan', href: '/dashboard/settings' },
   ];

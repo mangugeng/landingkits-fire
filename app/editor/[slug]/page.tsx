@@ -26,9 +26,9 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import ComponentList from '../../components/ComponentList';
-import { ComponentProperties } from '../../components/ComponentProperties';
+import ComponentProperties from '../../components/ComponentProperties';
+import { ComponentData } from '../../types/editor';
 import {
-  ComponentData,
   HeadingComponent,
   ParagraphComponent,
   ImageComponent,
@@ -521,7 +521,7 @@ export default function EditorPage() {
       {/* Main Content */}
       <div className="flex-1 flex">
         {/* Left Sidebar - Component List */}
-        <div className="w-64 bg-white border-r border-gray-200 overflow-y-auto lg:block hidden">
+        <div className="hidden lg:block w-64 bg-white border-l border-gray-200 p-4">
           <ComponentList onAddComponent={handleAddComponent} />
         </div>
 
@@ -605,7 +605,7 @@ export default function EditorPage() {
             {/* Component Properties */}
             {selectedComponent && (
               <ComponentProperties
-                selectedComponent={selectedComponent}
+                component={selectedComponent}
                 onUpdate={handleComponentUpdate}
                 onDelete={handleDeleteComponent}
               />
@@ -618,7 +618,7 @@ export default function EditorPage() {
       <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 z-40">
         <div className="overflow-x-auto">
           <div className="flex space-x-4 pb-2">
-            <ComponentList onAddComponent={handleAddComponent} isMobile={true} />
+            <ComponentList onAddComponent={handleAddComponent} />
           </div>
         </div>
       </div>
@@ -640,10 +640,9 @@ export default function EditorPage() {
             </div>
             <div className="p-4">
               <ComponentProperties
-                selectedComponent={selectedComponent}
+                component={selectedComponent}
                 onUpdate={handleComponentUpdate}
                 onDelete={handleDeleteComponent}
-                isMobile={true}
               />
             </div>
           </div>

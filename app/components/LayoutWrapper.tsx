@@ -2,6 +2,7 @@
 
 import { usePathname } from 'next/navigation';
 import FooterWrapper from './FooterWrapper';
+import { Toaster } from 'react-hot-toast';
 
 export default function LayoutWrapper({
   children,
@@ -13,8 +14,9 @@ export default function LayoutWrapper({
   const isDashboardPage = pathname === '/dashboard';
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {children}
+    <div className="min-h-screen bg-white">
+      <Toaster position="top-center" />
+      <main>{children}</main>
       {!isHomePage && !isDashboardPage && <FooterWrapper />}
     </div>
   );

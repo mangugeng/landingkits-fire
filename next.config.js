@@ -26,6 +26,7 @@ const nextConfig = {
         domains: [
             'firebasestorage.googleapis.com',
             'lh3.googleusercontent.com',
+            'images.unsplash.com',
         ],
         remotePatterns: [
             {
@@ -38,6 +39,18 @@ const nextConfig = {
     async rewrites() {
         return {
             beforeFiles: [
+                {
+                    source: '/:path*',
+                    has: [
+                        {
+                            type: 'host',
+                            value: '(?<subdomain>[^.]+).landingkits.com',
+                        },
+                    ],
+                    destination: '/:path*',
+                },
+            ],
+            afterFiles: [
                 {
                     source: '/:path*',
                     has: [
@@ -72,6 +85,7 @@ const nextConfig = {
             },
         ]
     },
+    output: 'standalone'
 }
 
 module.exports = nextConfig 

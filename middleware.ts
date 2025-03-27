@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
 export async function middleware(request: NextRequest) {
-  const { pathname, host } = request.nextUrl;
+  const { pathname, host, origin } = request.nextUrl;
 
   // Redirect ke www.landingkits.com jika mengakses tanpa www
   if (host === 'landingkits.com') {
@@ -13,14 +13,19 @@ export async function middleware(request: NextRequest) {
   if (host.includes('landingkits.com') && host !== 'www.landingkits.com') {
     const subdomain = host.split('.')[0];
     
+    // Jika path adalah /[subdomain], redirect ke root subdomain
+    if (pathname === `/${subdomain}`) {
+      return NextResponse.redirect(new URL(`https://${subdomain}.landingkits.com`));
+    }
+
     // Jika path adalah /home, redirect ke root subdomain
     if (pathname === '/home') {
       return NextResponse.redirect(new URL(`https://${subdomain}.landingkits.com`));
     }
 
-    // Jika path adalah /[subdomain], redirect ke root subdomain
-    if (pathname === `/${subdomain}`) {
-      return NextResponse.redirect(new URL(`https://${subdomain}.landingkits.com`));
+    // Jika path adalah /, biarkan request berlanjut
+    if (pathname === '/') {
+      return NextResponse.next();
     }
   }
 
@@ -46,7 +51,7 @@ export async function middleware(request: NextRequest) {
     if (!isLoggedIn) {
       console.log('Redirecting to login page');
       // Redirect ke halaman login jika belum login
-      return NextResponse.redirect(new URL('/auth/login', request.url));
+      return NextResponse.redirect(new URL('/auth/login', origin));
     }
   }
 
@@ -72,7 +77,7 @@ export async function middleware(request: NextRequest) {
     if (!isLoggedIn) {
       console.log('Redirecting to auth page');
       // Redirect ke halaman auth jika belum login
-      return NextResponse.redirect(new URL('/auth', request.url));
+      return NextResponse.redirect(new URL('/auth', origin));
     }
   }
 
