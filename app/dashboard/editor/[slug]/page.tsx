@@ -25,8 +25,9 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import ComponentList from '@/app/components/ComponentList';
+import { ComponentList } from '@/app/components/ComponentList';
 import ComponentProperties from '@/app/components/ComponentProperties';
+import { ComponentType, ComponentData as EditorComponentData } from '@/app/types/editor';
 import {
   HeadingComponent,
   ParagraphComponent,
@@ -38,6 +39,7 @@ import {
   TestimonialComponent,
   PricingComponent,
   SpacerComponent,
+  HeroComponent,
   componentMap
 } from '@/app/components/EditorComponents';
 import { collection, getDocs, query, where } from 'firebase/firestore';
@@ -46,21 +48,34 @@ import { DroppableContainer } from '@/app/components/DroppableContainer';
 import ComponentRenderer from '@/app/components/editor/ComponentRenderer';
 import { templateService } from '@/app/lib/templates';
 import { componentEditorService } from '@/app/lib/component-editor';
-import { ComponentData, LandingPage } from '@/app/types/editor';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
 }
 
+interface LandingPage {
+  id: string;
+  title: string;
+  description: string;
+  content: EditorComponentData[];
+  status: 'draft' | 'published';
+  userId: string;
+  createdAt: string;
+  updatedAt?: string;
+  publishedAt: string | null;
+  slug: string;
+  hasUnpublishedChanges?: boolean;
+}
+
 interface SortableComponentProps {
-  component: ComponentData;
-  onSelect: (component: ComponentData) => void;
+  component: EditorComponentData;
+  onSelect: (component: EditorComponentData) => void;
   onDelete: (id: string) => void;
   onMoveUp?: (id: string) => void;
   onMoveDown?: (id: string) => void;
 }
 
-const getComponentIcon = (type: ComponentData['type']) => {
+const getComponentIcon = (type: ComponentType) => {
   switch (type) {
     case 'heading':
       return <h1 className="w-6 h-6 text-gray-600" />;
@@ -167,11 +182,11 @@ export default function Editor() {
   const params = useParams();
   const [isLoading, setIsLoading] = useState(true);
   const [landingPage, setLandingPage] = useState<LandingPage | null>(null);
-  const [selectedComponent, setSelectedComponent] = useState<ComponentData | null>(null);
+  const [selectedComponent, setSelectedComponent] = useState<EditorComponentData | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(null);
-  const [activeDraggedComponent, setActiveDraggedComponent] = useState<ComponentData | null>(null);
+  const [activeDraggedComponent, setActiveDraggedComponent] = useState<EditorComponentData | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
   const [isPreviewMode, setIsPreviewMode] = useState(false);
@@ -319,10 +334,10 @@ export default function Editor() {
     setActiveDraggedComponent(null);
   };
 
-  const handleAddComponent = (type: ComponentData['type']) => {
+  const handleAddComponent = (type: ComponentType) => {
     if (!landingPage) return;
 
-    const newComponent: ComponentData = {
+    const newComponent: EditorComponentData = {
       id: `comp-${Date.now()}`,
       type,
       content: type === 'heading' ? 'New Heading' :
@@ -330,6 +345,7 @@ export default function Editor() {
                type === 'button' ? 'Click me' :
                type === 'image' ? 'https://placehold.co/400x300' :
                type === 'cta' ? 'Call to Action' :
+               type === 'hero' ? 'Hero Section' :
                '',
       props: type === 'button' ? { style: 'primary' } :
              type === 'form' ? {
@@ -355,10 +371,16 @@ export default function Editor() {
              } :
              type === 'pricing' ? {
                pricingPlans: [
-                 { name: 'Basic', price: '$9', features: ['Feature 1', 'Feature 2', 'Feature 3'], ctaText: 'Get Started', ctaLink: '#', popular: false },
-                 { name: 'Pro', price: '$29', features: ['Feature 1', 'Feature 2', 'Feature 3', 'Feature 4'], ctaText: 'Get Started', ctaLink: '#', popular: true },
-                 { name: 'Enterprise', price: '$99', features: ['Feature 1', 'Feature 2', 'Feature 3', 'Feature 4', 'Feature 5'], ctaText: 'Get Started', ctaLink: '#', popular: false }
+                 { name: 'Basic', price: '$9', description: 'Basic plan for starters', features: ['Feature 1', 'Feature 2', 'Feature 3'], ctaText: 'Get Started', ctaLink: '#', popular: false },
+                 { name: 'Pro', price: '$29', description: 'Professional plan for businesses', features: ['Feature 1', 'Feature 2', 'Feature 3', 'Feature 4'], ctaText: 'Get Started', ctaLink: '#', popular: true },
+                 { name: 'Enterprise', price: '$99', description: 'Enterprise plan for large teams', features: ['Feature 1', 'Feature 2', 'Feature 3', 'Feature 4', 'Feature 5'], ctaText: 'Get Started', ctaLink: '#', popular: false }
                ]
+             } :
+             type === 'hero' ? {
+               title: 'Welcome to Our Platform',
+               description: 'The best solution for your needs',
+               buttonText: 'Get Started',
+               imageUrl: 'https://placehold.co/800x600'
              } :
              undefined
     };
@@ -369,12 +391,12 @@ export default function Editor() {
     } : null);
   };
 
-  const handleUpdateComponent = (updatedComponent: ComponentData) => {
+  const handleUpdateComponent = (updatedComponent: EditorComponentData) => {
     if (!landingPage) return;
 
     console.log('Updating component:', updatedComponent);
 
-    const updatedContent = landingPage.content.map((component: ComponentData) =>
+    const updatedContent = landingPage.content.map((component: EditorComponentData) =>
       component.id === updatedComponent.id ? updatedComponent : component
     );
 
@@ -390,7 +412,7 @@ export default function Editor() {
     console.log('Deleting component:', componentId);
 
     const updatedContent = landingPage.content.filter(
-      (component: ComponentData) => component.id !== componentId
+      (component: EditorComponentData) => component.id !== componentId
     );
 
     setLandingPage({
@@ -524,7 +546,7 @@ export default function Editor() {
           <div className="px-2">
             {isPreviewMode ? (
               <div className="space-y-8 max-w-4xl mx-auto">
-                {landingPage?.content.map((component: ComponentData) => (
+                {landingPage?.content.map((component: EditorComponentData) => (
                   <div key={component.id}>
                     {component.type === 'heading' && (
                       <div className={`${component.props?.level === 'h1' ? 'text-4xl' : 
@@ -672,11 +694,11 @@ export default function Editor() {
                 onDragEnd={handleDragEnd}
               >
                   <SortableContext
-                  items={Array.isArray(landingPage?.content) ? landingPage.content.map((item: ComponentData) => item.id) : []}
+                  items={Array.isArray(landingPage?.content) ? landingPage.content.map((item: EditorComponentData) => item.id) : []}
                     strategy={verticalListSortingStrategy}
                   >
                   <DroppableContainer>
-                    {landingPage?.content.map((component: ComponentData) => (
+                    {landingPage?.content.map((component: EditorComponentData) => (
                       <ComponentRenderer
                         key={component.id}
                         component={component}
@@ -742,7 +764,7 @@ export default function Editor() {
             {Object.entries(componentMap).map(([type]) => (
               <button
                 key={type}
-                onClick={() => handleAddComponent(type as ComponentData['type'])}
+                onClick={() => handleAddComponent(type as ComponentType)}
                 className="flex items-center gap-2 flex-shrink-0 px-3 py-2 mx-1 bg-white border border-gray-200 rounded-lg hover:bg-blue-50 transition-colors"
                 title={type.charAt(0).toUpperCase() + type.slice(1)}
               >

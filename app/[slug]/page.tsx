@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, updateDoc, increment, setDoc, arrayUnion, Timestamp } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { toast } from 'react-hot-toast';
 import { ComponentData } from '@/app/types/editor';
@@ -47,10 +47,23 @@ export default function DynamicPage() {
         const querySnapshot = await getDocs(q);
         if (!querySnapshot.empty) {
           const doc = querySnapshot.docs[0];
+          const data = doc.data();
           setPage({
             id: doc.id,
-            ...doc.data()
+            ...data
           } as LandingPage);
+
+          // Update analytics langsung di dokumen landing page
+          const now = Timestamp.now();
+          await updateDoc(doc.ref, {
+            'analytics.views': increment(1),
+            'analytics.uniqueVisitors': increment(1),
+            'analytics.lastVisit': now,
+            'analytics.visitHistory': arrayUnion({
+              timestamp: now,
+              type: 'view'
+            })
+          });
         }
       } catch (error) {
         console.error('Error fetching page:', error);

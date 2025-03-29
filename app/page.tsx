@@ -97,7 +97,7 @@ const renderComponent = (component: ComponentData, pageData: LandingPage) => {
               e.preventDefault();
               const formType = component.props?.formType || 'contact';
               switch(formType) {
-                case 'registration':
+                case 'register':
                   trackRegistration(pageData.id);
                   break;
                 case 'contact':
@@ -106,6 +106,8 @@ const renderComponent = (component: ComponentData, pageData: LandingPage) => {
                 case 'subscribe':
                   trackSubscribe(pageData.id);
                   break;
+                default:
+                  console.log('Unknown form type:', formType);
               }
             }}
           >
@@ -257,7 +259,7 @@ export default function RootPage() {
     const handleSubdomain = async () => {
       try {
         const hostname = window.location.hostname;
-        const isSubdomain = hostname.includes('landingkits.com') && hostname !== 'landingkits.com';
+        const isSubdomain = hostname.includes('landingkits.com') && hostname !== 'landingkits.com' && hostname !== 'www.landingkits.com';
 
         if (isSubdomain) {
           const subdomain = hostname.split('.')[0];
@@ -282,27 +284,48 @@ export default function RootPage() {
               status: data.status,
               userId: data.userId,
               slug: data.slug,
-              createdAt: data.createdAt?.toDate().toISOString(),
-              updatedAt: data.updatedAt?.toDate().toISOString(),
+              createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate().toISOString() : new Date().toISOString(),
+              updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt.toDate().toISOString() : new Date().toISOString(),
               analytics: data.analytics
             });
 
-            // Update analytics
+            // Get user info
+            const userAgent = window.navigator.userAgent;
+            const screenSize = `${window.screen.width}x${window.screen.height}`;
+            const browser = detectBrowser(userAgent);
+            const device = detectDevice(userAgent);
+            const os = detectOS(userAgent);
+            
+            // Get location
+            const location = await getUserLocation();
+
             const now = Timestamp.now();
-            await updateDoc(doc.ref, {
+            const analyticsRef = doc.ref;
+            
+            // Update analytics
+            await updateDoc(analyticsRef, {
               'analytics.views': increment(1),
-              'analytics.visitors': increment(1),
+              'analytics.uniqueVisitors': increment(1),
               'analytics.lastVisit': now,
               'analytics.visitHistory': arrayUnion({
                 timestamp: now,
-                type: 'view'
-              })
+                type: 'view',
+                browser,
+                device,
+                os,
+                screenSize,
+                location
+              }),
+              [`analytics.devices.${device}`]: increment(1),
+              [`analytics.operatingSystems.${os}`]: increment(1),
+              [`analytics.locations.cities.${location.city}`]: increment(1),
+              [`analytics.locations.countries.${location.country}`]: increment(1)
             });
           } else {
-            // Halaman tidak ditemukan, redirect ke www
             window.location.href = 'https://www.landingkits.com';
           }
         }
+        setIsSubdomain(isSubdomain);
       } catch (error) {
         console.error('Error handling subdomain:', error);
         toast.error('Terjadi kesalahan');
@@ -324,8 +347,10 @@ export default function RootPage() {
       }
     };
 
-    fetchPosts();
-  }, []);
+    if (!isSubdomain) {
+      fetchPosts();
+    }
+  }, [isSubdomain]);
 
   if (isLoading) {
     return (
@@ -626,4 +651,47 @@ export default function RootPage() {
       </footer>
     </div>
   );
+}
+
+// Helper functions
+function detectBrowser(userAgent: string): string {
+  if (userAgent.includes('Chrome')) return 'Chrome';
+  if (userAgent.includes('Firefox')) return 'Firefox';
+  if (userAgent.includes('Safari')) return 'Safari';
+  if (userAgent.includes('Edge')) return 'Edge';
+  return 'Other';
+}
+
+function detectDevice(userAgent: string): string {
+  if (/mobile/i.test(userAgent)) return 'mobile';
+  if (/tablet/i.test(userAgent)) return 'tablet';
+  return 'desktop';
+}
+
+function detectOS(userAgent: string): string {
+  if (/macintosh|mac os x/i.test(userAgent)) return 'MacOS';
+  if (/windows/i.test(userAgent)) return 'Windows';
+  if (/linux/i.test(userAgent)) return 'Linux';
+  if (/android/i.test(userAgent)) return 'Android';
+  if (/iphone|ipad|ipod/i.test(userAgent)) return 'iOS';
+  return 'Other';
+}
+
+async function getUserLocation() {
+  try {
+    const response = await fetch('https://ipapi.co/json/');
+    const data = await response.json();
+    return {
+      city: data.city || 'Unknown',
+      country: data.country_code || 'Unknown',
+      region: data.region || 'Unknown'
+    };
+  } catch (error) {
+    console.error('Error getting location:', error);
+    return {
+      city: 'Unknown',
+      country: 'Unknown',
+      region: 'Unknown'
+    };
+  }
 }

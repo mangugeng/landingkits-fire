@@ -473,7 +473,7 @@ export default function ComponentProperties({
           <Button
             variant="destructive"
             size="sm"
-            onClick={() => onDelete(component.id)}
+            onClick={() => onDelete(component.id || '')}
           >
             Hapus
           </Button>

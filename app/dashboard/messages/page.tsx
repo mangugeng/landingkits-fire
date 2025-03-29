@@ -102,12 +102,12 @@ export default function MessagesPage() {
       const messagesRef = collection(db, 'messages');
       const q = query(messagesRef, orderBy('date', 'desc'));
       const querySnapshot = await getDocs(q);
-      
+
       const messagesData = querySnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       })) as Message[];
-      
+
       setMessages(messagesData);
     } catch (error) {
       console.error('Error fetching messages:', error);
@@ -150,7 +150,7 @@ export default function MessagesPage() {
       };
 
       await addDoc(collection(db, 'messages'), messageData);
-      
+
       // Reset form
       setNewMessage({
         subject: '',
@@ -161,7 +161,7 @@ export default function MessagesPage() {
         originalSubject: '',
         threadId: ''
       });
-      
+
       setShowNewMessageDialog(false);
       setReplyingTo(null);
       toast.success('Pesan berhasil dikirim!');
@@ -195,14 +195,14 @@ export default function MessagesPage() {
       await updateDoc(messageRef, {
         starred: !currentStarred
       });
-      
+
       // Update local state
-      setMessages(prev => prev.map(message => 
-        message.id === messageId 
+      setMessages(prev => prev.map(message =>
+        message.id === messageId
           ? { ...message, starred: !currentStarred }
           : message
       ));
-      
+
       toast.success(currentStarred ? 'Pesan dihapus dari penting' : 'Pesan ditandai sebagai penting');
     } catch (error) {
       console.error('Error updating message:', error);
@@ -217,10 +217,10 @@ export default function MessagesPage() {
 
     try {
       await deleteDoc(doc(db, 'messages', messageId));
-      
+
       // Update local state
       setMessages(prev => prev.filter(message => message.id !== messageId));
-      
+
       toast.success('Pesan berhasil dihapus');
     } catch (error) {
       console.error('Error deleting message:', error);
@@ -234,10 +234,10 @@ export default function MessagesPage() {
       await updateDoc(messageRef, {
         read: !currentRead
       });
-      
+
       // Update local state
-      setMessages(prev => prev.map(message => 
-        message.id === messageId 
+      setMessages(prev => prev.map(message =>
+        message.id === messageId
           ? { ...message, read: !currentRead }
           : message
       ));
@@ -249,19 +249,19 @@ export default function MessagesPage() {
 
   const filteredMessages = messages.filter(message => {
     const matchesSearch = message.subject.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         message.sender.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         message.content.toLowerCase().includes(searchQuery.toLowerCase());
-    
+      message.sender.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      message.content.toLowerCase().includes(searchQuery.toLowerCase());
+
     const matchesFilter = filter === 'all' ? true :
-                         filter === 'unread' ? !message.read :
-                         filter === 'starred' ? message.starred : true;
-    
+      filter === 'unread' ? !message.read :
+        filter === 'starred' ? message.starred : true;
+
     return matchesSearch && matchesFilter;
   });
 
   const groupMessagesByThread = (messages: Message[]) => {
     const threads: { [key: string]: Message[] } = {};
-    
+
     messages.forEach(message => {
       const threadId = message.threadId || message.id;
       if (!threads[threadId]) {
@@ -414,7 +414,7 @@ export default function MessagesPage() {
               </div>
             ) : (
               activeContacts
-                .filter(user => 
+                .filter(user =>
                   user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                   user.email.toLowerCase().includes(searchQuery.toLowerCase())
                 )
@@ -477,11 +477,10 @@ export default function MessagesPage() {
                 {threadMessages.map((message, index) => {
                   const isCurrentUser = message.sender === auth.currentUser?.displayName;
                   return (
-                    <div 
+                    <div
                       key={message.id}
-                      className={`flex ${isCurrentUser ? 'justify-end' : 'justify-start'} ${
-                        index > 0 ? 'mt-2' : ''
-                      }`}
+                      className={`flex ${isCurrentUser ? 'justify-end' : 'justify-start'} ${index > 0 ? 'mt-2' : ''
+                        }`}
                     >
                       <div className={`flex items-start space-x-2 max-w-[70%] ${isCurrentUser ? 'flex-row-reverse space-x-reverse' : ''}`}>
                         <div className="flex-shrink-0">
@@ -489,13 +488,11 @@ export default function MessagesPage() {
                             variant="ghost"
                             size="sm"
                             onClick={() => handleMarkAsRead(message.id, message.read)}
-                            className={`h-10 w-10 rounded-full p-0 ${
-                              message.read ? 'bg-gray-100' : 'bg-indigo-100'
-                            }`}
+                            className={`h-10 w-10 rounded-full p-0 ${message.read ? 'bg-gray-100' : 'bg-indigo-100'
+                              }`}
                           >
-                            <FiMail className={`h-6 w-6 ${
-                              message.read ? 'text-gray-400' : 'text-indigo-600'
-                            }`} />
+                            <FiMail className={`h-6 w-6 ${message.read ? 'text-gray-400' : 'text-indigo-600'
+                              }`} />
                           </Button>
                         </div>
                         <div className={`flex flex-col ${isCurrentUser ? 'items-end' : 'items-start'}`}>
@@ -510,18 +507,16 @@ export default function MessagesPage() {
                               })}
                             </span>
                           </div>
-                          <div className={`relative group rounded-lg p-3 ${
-                            isCurrentUser 
-                              ? 'bg-blue-500 text-white rounded-br-none' 
+                          <div className={`relative group rounded-lg p-3 ${isCurrentUser
+                              ? 'bg-blue-500 text-white rounded-br-none'
                               : 'bg-gray-100 text-gray-900 rounded-bl-none'
-                          }`}>
+                            }`}>
                             <div className="text-sm">
                               {message.content}
                             </div>
                             {message.replyTo && (
-                              <div className={`text-xs mt-1 ${
-                                isCurrentUser ? 'text-blue-100' : 'text-gray-500'
-                              }`}>
+                              <div className={`text-xs mt-1 ${isCurrentUser ? 'text-blue-100' : 'text-gray-500'
+                                }`}>
                                 Balasan untuk: {message.originalSubject}
                               </div>
                             )}
@@ -531,9 +526,8 @@ export default function MessagesPage() {
                                   variant="ghost"
                                   size="sm"
                                   onClick={() => handleReply(message)}
-                                  className={`h-6 w-6 p-0 ${
-                                    isCurrentUser ? 'text-blue-100 hover:text-white' : 'text-gray-500 hover:text-gray-700'
-                                  }`}
+                                  className={`h-6 w-6 p-0 ${isCurrentUser ? 'text-blue-100 hover:text-white' : 'text-gray-500 hover:text-gray-700'
+                                    }`}
                                 >
                                   <FiCornerUpLeft className="h-4 w-4" />
                                 </Button>
@@ -541,13 +535,12 @@ export default function MessagesPage() {
                                   variant="ghost"
                                   size="sm"
                                   onClick={() => handleStarMessage(message.id, message.starred)}
-                                  className={`h-6 w-6 p-0 ${
-                                    message.starred 
-                                      ? 'text-yellow-500' 
-                                      : isCurrentUser 
-                                        ? 'text-blue-100 hover:text-white' 
+                                  className={`h-6 w-6 p-0 ${message.starred
+                                      ? 'text-yellow-500'
+                                      : isCurrentUser
+                                        ? 'text-blue-100 hover:text-white'
                                         : 'text-gray-500 hover:text-gray-700'
-                                  }`}
+                                    }`}
                                 >
                                   <FiStar className="h-4 w-4" />
                                 </Button>
@@ -555,11 +548,10 @@ export default function MessagesPage() {
                                   variant="ghost"
                                   size="sm"
                                   onClick={() => handleDeleteMessage(message.id)}
-                                  className={`h-6 w-6 p-0 ${
-                                    isCurrentUser 
-                                      ? 'text-blue-100 hover:text-white' 
+                                  className={`h-6 w-6 p-0 ${isCurrentUser
+                                      ? 'text-blue-100 hover:text-white'
                                       : 'text-gray-500 hover:text-gray-700'
-                                  }`}
+                                    }`}
                                 >
                                   <FiTrash2 className="h-4 w-4" />
                                 </Button>

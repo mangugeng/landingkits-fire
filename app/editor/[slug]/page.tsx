@@ -25,7 +25,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import ComponentList from '../../components/ComponentList';
+import { ComponentList } from '../../components/ComponentList';
 import ComponentProperties from '../../components/ComponentProperties';
 import { ComponentData } from '../../types/editor';
 import {
@@ -38,7 +38,8 @@ import {
   FeaturesComponent,
   TestimonialComponent,
   PricingComponent,
-  SpacerComponent
+  SpacerComponent,
+  HeroComponent
 } from '../../components/EditorComponents';
 
 interface LandingPage {
@@ -70,8 +71,9 @@ const componentMap = {
   features: FeaturesComponent,
   testimonial: TestimonialComponent,
   pricing: PricingComponent,
-  spacer: SpacerComponent
-};
+  spacer: SpacerComponent,
+  hero: HeroComponent
+} as const;
 
 interface SortableComponentProps {
   component: ComponentData;
@@ -210,20 +212,17 @@ export default function EditorPage() {
       const pageId = page.id || (Array.isArray(params.slug) ? params.slug[0] : params.slug);
       const pageRef = doc(db, 'landing_pages', pageId);
       
-      // Pastikan semua field terdefinisi dengan nilai default
       const pageData = {
         id: pageId,
         title: title || '',
         description: description || '',
         content: Array.isArray(page.content) ? page.content.map(component => {
-          // Pastikan setiap komponen memiliki struktur yang valid
           const validComponent = {
             id: component.id || generateId(),
             type: component.type,
             content: component.content || '',
             props: {
               ...component.props,
-              // Pastikan setiap properti komponen memiliki nilai default
               variant: component.props?.variant || 'primary',
               size: component.props?.size || 'md',
               alignment: component.props?.alignment || 'left',
@@ -252,45 +251,24 @@ export default function EditorPage() {
               pricingPlans: Array.isArray(component.props?.pricingPlans) ? component.props.pricingPlans.map(plan => ({
                 name: plan.name || '',
                 price: plan.price || '',
+                description: plan.description || 'No description available',
                 features: Array.isArray(plan.features) ? plan.features : [],
                 ctaText: plan.ctaText || '',
-                ctaLink: plan.ctaLink || '',
+                ctaLink: plan.ctaLink,
                 popular: plan.popular || false
-              })) : [],
-              height: typeof component.props?.height === 'number' ? component.props.height : 40,
-              description: component.props?.description || '',
-              ctaText: component.props?.ctaText || 'Get Started'
+              })) : []
             }
           };
-
-          // Hapus properti yang undefined
-          Object.keys(validComponent.props).forEach(key => {
-            if (validComponent.props[key as keyof typeof validComponent.props] === undefined) {
-              delete validComponent.props[key as keyof typeof validComponent.props];
-            }
-          });
-
           return validComponent;
         }) : [],
         status: page.status || 'draft',
-        slug: page.slug || '',
-        userId: page.userId || '',
-        createdAt: page.createdAt || new Date().toISOString(),
+        userId: page.userId,
+        createdAt: page.createdAt,
         updatedAt: new Date().toISOString(),
-        publishedAt: page.publishedAt || null
+        publishedAt: page.publishedAt || null,
+        slug: page.slug,
+        hasUnpublishedChanges: true
       };
-
-      // Hapus field yang undefined dari pageData
-      Object.keys(pageData).forEach(key => {
-        if (pageData[key as keyof typeof pageData] === undefined) {
-          delete pageData[key as keyof typeof pageData];
-        }
-      });
-
-      // Pastikan content adalah array
-      if (!Array.isArray(pageData.content)) {
-        pageData.content = [];
-      }
 
       await updateDoc(pageRef, pageData);
       setHasUnpublishedChanges(false);
@@ -366,25 +344,27 @@ export default function EditorPage() {
              } :
              type === 'testimonial' ? {
                testimonials: [
-                 { name: 'John Doe', role: 'CEO', content: 'Great product!', avatar: 'https://placehold.co/100' },
-                 { name: 'Jane Smith', role: 'Designer', content: 'Amazing service!', avatar: 'https://placehold.co/100' },
-                 { name: 'Mike Johnson', role: 'Developer', content: 'Best in class!', avatar: 'https://placehold.co/100' }
+                 { name: 'John Doe', role: 'CEO', content: 'Great product!', avatar: 'https://placehold.co/100x100' },
+                 { name: 'Jane Smith', role: 'Designer', content: 'Amazing design!', avatar: 'https://placehold.co/100x100' },
+                 { name: 'Mike Johnson', role: 'Developer', content: 'Excellent code!', avatar: 'https://placehold.co/100x100' }
                ]
              } :
              type === 'pricing' ? {
                pricingPlans: [
-                 { name: 'Basic', price: '$9', features: ['Feature 1', 'Feature 2', 'Feature 3'], ctaText: 'Get Started', ctaLink: '#', popular: false },
-                 { name: 'Pro', price: '$29', features: ['Feature 1', 'Feature 2', 'Feature 3', 'Feature 4'], ctaText: 'Get Started', ctaLink: '#', popular: true },
-                 { name: 'Enterprise', price: '$99', features: ['Feature 1', 'Feature 2', 'Feature 3', 'Feature 4', 'Feature 5'], ctaText: 'Get Started', ctaLink: '#', popular: false }
+                 { name: 'Basic', price: '$9.99', description: 'Perfect for small projects', features: ['Feature 1', 'Feature 2', 'Feature 3'], ctaText: 'Get Started', ctaLink: '#', popular: false },
+                 { name: 'Pro', price: '$19.99', description: 'Best for growing teams', features: ['Feature 1', 'Feature 2', 'Feature 3', 'Feature 4'], ctaText: 'Get Started', ctaLink: '#', popular: true },
+                 { name: 'Enterprise', price: '$29.99', description: 'For large organizations', features: ['Feature 1', 'Feature 2', 'Feature 3', 'Feature 4', 'Feature 5'], ctaText: 'Get Started', ctaLink: '#', popular: false }
                ]
              } :
+             type === 'spacer' ? { height: 40 } :
              undefined
     };
 
     setPage(prev => prev ? {
       ...prev,
-      content: [...(prev.content || []), newComponent]
+      content: [...prev.content, newComponent]
     } : null);
+    setHasUnpublishedChanges(true);
   };
 
   const handleEditComponent = (id: string) => {

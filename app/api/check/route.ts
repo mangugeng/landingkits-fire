@@ -1,64 +1,78 @@
-import { NextResponse, NextRequest } from 'next/server';
-import { db } from '../../lib/firebase';
-import { collection, getDocs } from 'firebase/firestore';
-
-export const dynamic = 'force-dynamic';
+import { NextResponse } from 'next/server';
+import { db } from '@/app/lib/firebase';
+import { collection, query, where, getDocs } from 'firebase/firestore';
 
 interface LandingPage {
   id: string;
-  userId: string;
+  title: string;
+  description: string;
   slug: string;
-  title?: string;
-  description?: string;
-  createdAt?: Date;
-  updatedAt?: Date;
+  userId: string;
+  content: any[];
+  status: 'draft' | 'published';
+  createdAt: any;
+  updatedAt: any;
+  analytics?: {
+    views: number;
+    conversions: number;
+    visitors: number;
+    lastVisit?: any;
+    visitHistory?: Array<{
+      timestamp: any;
+      type: 'view' | 'conversion';
+      eventType?: string;
+    }>;
+  };
 }
 
-export async function GET(request: NextRequest) {
+export async function GET(request: Request) {
   try {
-    const searchParams = request.nextUrl.searchParams;
+    const { searchParams } = new URL(request.url);
     const slug = searchParams.get('slug');
     const userId = searchParams.get('userId');
     const listAll = searchParams.get('listAll') === 'true';
 
-    console.log('Request params:', { slug, userId, listAll });
+    console.log('Request parameters:', { slug, userId, listAll });
 
     if (listAll) {
-      console.log('Fetching all landing pages...');
-      const querySnapshot = await getDocs(collection(db, 'landing_pages'));
+      const landingPagesRef = collection(db, 'landing_pages');
+      const querySnapshot = await getDocs(landingPagesRef);
       const pages = querySnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
-      } as LandingPage));
-      console.log('Found pages:', JSON.stringify(pages, null, 2));
-
-      return NextResponse.json({
-        message: 'Daftar landing pages',
-        data: pages
-      });
+      })) as LandingPage[];
+      
+      console.log('All pages:', JSON.stringify(pages, null, 2));
+      return NextResponse.json({ pages });
     }
 
     if (!slug || !userId) {
-      console.log('Missing required params:', { slug, userId });
       return NextResponse.json(
         { error: 'Slug dan userId harus diisi' },
         { status: 400 }
       );
     }
 
-    console.log('Fetching landing page with:', { slug, userId });
-    const querySnapshot = await getDocs(collection(db, 'landing_pages'));
+    const landingPagesRef = collection(db, 'landing_pages');
+    const q = query(
+      landingPagesRef,
+      where('slug', '==', slug),
+      where('userId', '==', userId)
+    );
+
+    const querySnapshot = await getDocs(q);
     const pages = querySnapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data()
-    } as LandingPage));
+    })) as LandingPage[];
+    
     console.log('All pages:', JSON.stringify(pages, null, 2));
     const page = pages.find(p => p.userId === userId && p.slug === slug);
     
     if (!page) {
       console.log('No landing page found with slug:', slug);
       return NextResponse.json(
-        { message: 'Landing page tidak ditemukan' },
+        { error: 'Landing page tidak ditemukan' },
         { status: 404 }
       );
     }
@@ -68,11 +82,10 @@ export async function GET(request: NextRequest) {
       message: 'Landing page ditemukan',
       data: page
     });
-
-  } catch (error) {
-    console.error('Detailed error:', error);
+  } catch (error: any) {
+    console.error('Error fetching landing page:', error);
     return NextResponse.json(
-      { error: 'Terjadi kesalahan saat mengecek landing page' },
+      { error: error.message },
       { status: 500 }
     );
   }

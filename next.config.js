@@ -50,18 +50,6 @@ const nextConfig = {
                     destination: '/:path*',
                 },
             ],
-            afterFiles: [
-                {
-                    source: '/:path*',
-                    has: [
-                        {
-                            type: 'host',
-                            value: '(?<subdomain>[^.]+).landingkits.com',
-                        },
-                    ],
-                    destination: '/:path*',
-                },
-            ],
         }
     },
     async headers() {

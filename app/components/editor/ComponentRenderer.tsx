@@ -1,45 +1,8 @@
 import React from 'react';
 import { PencilIcon, TrashIcon } from '@heroicons/react/24/outline';
+import { ComponentData as EditorComponentData } from '@/app/types/editor';
 
-interface ComponentData {
-  id: string;
-  type: 'heading' | 'paragraph' | 'image' | 'button' | 'form' | 'cta' | 'features' | 'testimonial' | 'pricing' | 'spacer';
-  content: string;
-  props?: {
-    text?: string;
-    level?: 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6';
-    src?: string;
-    alt?: string;
-    link?: string;
-    style?: 'primary' | 'secondary' | 'outline';
-    height?: number;
-    formFields?: Array<{
-      type: 'text' | 'email' | 'textarea';
-      label: string;
-      placeholder: string;
-      required: boolean;
-    }>;
-    features?: Array<{
-      title: string;
-      description: string;
-      icon: string;
-    }>;
-    testimonials?: Array<{
-      name: string;
-      role: string;
-      content: string;
-      avatar: string;
-    }>;
-    pricingPlans?: Array<{
-      name: string;
-      price: string;
-      features: string[];
-      ctaText: string;
-      ctaLink: string;
-      popular: boolean;
-    }>;
-  };
-}
+type ComponentData = EditorComponentData;
 
 interface ComponentRendererProps {
   component: ComponentData;
@@ -194,7 +157,7 @@ export default function ComponentRenderer({ component, onSelect, onDelete, onMov
         return (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {component.props?.pricingPlans?.map((plan, index) => (
-              <div key={index} className={`p-6 bg-white rounded-lg border-2 ${plan.popular ? 'border-blue-500 ring-2 ring-blue-500 ring-opacity-50' : 'border-gray-200'}`}>
+              <div key={index} className={`p-6 rounded-lg ${plan.popular ? 'bg-blue-50 border-2 border-blue-500' : 'bg-white border'}`}>
                 {plan.popular && (
                   <span className="inline-block px-3 py-1 text-sm text-blue-600 bg-blue-50 rounded-full mb-4">
                     Popular
@@ -202,6 +165,7 @@ export default function ComponentRenderer({ component, onSelect, onDelete, onMov
                 )}
                 <h3 className="text-xl font-semibold text-gray-900 mb-2">{plan.name}</h3>
                 <p className="text-3xl font-bold text-gray-900 mb-4">{plan.price}</p>
+                <p className="text-gray-600 mb-4">{plan.description}</p>
                 <ul className="space-y-3 mb-6">
                   {plan.features.map((feature, featureIndex) => (
                     <li key={featureIndex} className="flex items-center text-gray-600">
@@ -238,6 +202,41 @@ export default function ComponentRenderer({ component, onSelect, onDelete, onMov
       case 'spacer':
         return (
           <div style={{ height: component.props?.height || 20 }} />
+        );
+
+      case 'hero':
+        return (
+          <div className="relative bg-gray-900 text-white py-16">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+              <div className="text-center">
+                <h1 className="text-4xl font-extrabold sm:text-5xl md:text-6xl">
+                  {component.props?.title || component.content}
+                </h1>
+                <p className="mt-3 max-w-md mx-auto text-base sm:text-lg md:mt-5 md:text-xl md:max-w-3xl">
+                  {component.props?.description || 'A powerful solution for your needs'}
+                </p>
+                <div className="mt-5 max-w-md mx-auto sm:flex sm:justify-center md:mt-8">
+                  <div className="rounded-md shadow">
+                    <a
+                      href="#"
+                      className="w-full flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 md:py-4 md:text-lg md:px-10"
+                    >
+                      {component.props?.buttonText || 'Get started'}
+                    </a>
+                  </div>
+                </div>
+              </div>
+            </div>
+            {component.props?.imageUrl && (
+              <div className="absolute inset-0 z-0 opacity-20">
+                <img
+                  src={component.props.imageUrl}
+                  alt="Hero background"
+                  className="w-full h-full object-cover"
+                />
+              </div>
+            )}
+          </div>
         );
 
       default:

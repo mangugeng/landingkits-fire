@@ -11,7 +11,7 @@ import { toast } from 'sonner';
 import { templateService } from '@/app/lib/templates';
 import { landingPageService } from '@/app/lib/landingpage';
 
-function CreateLandingPageContent() {
+function CreateLandingPageForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user } = useAuth();
@@ -131,7 +131,7 @@ function CreateLandingPageContent() {
 export default function CreateLandingPage() {
   return (
     <Suspense fallback={<div>Loading...</div>}>
-      <CreateLandingPageContent />
+      <CreateLandingPageForm />
     </Suspense>
   );
 } 

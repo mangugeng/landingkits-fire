@@ -1,4 +1,4 @@
-export type ComponentType = 'heading' | 'paragraph' | 'image' | 'button' | 'form' | 'cta' | 'features' | 'testimonial' | 'pricing' | 'spacer';
+export type ComponentType = 'heading' | 'paragraph' | 'image' | 'button' | 'form' | 'cta' | 'features' | 'testimonial' | 'pricing' | 'spacer' | 'hero';
 
 export interface FormFieldOption {
   label: string;
@@ -27,29 +27,24 @@ export interface ComponentData {
     src?: string;
     alt?: string;
     link?: string;
-    style?: 'primary' | 'secondary' | 'outline';
+    style?: 'primary' | 'outline' | 'secondary';
+    variant?: 'primary' | 'secondary' | 'outline';
+    ctaType?: 'register' | 'purchase' | 'download' | 'contact' | 'subscribe' | 'share';
+    formType?: 'contact' | 'register' | 'subscribe';
     height?: number;
     imageSource?: 'url' | 'upload' | 'camera' | 'device' | 'library';
-    variant?: 'primary' | 'secondary' | 'outline' | 'text';
     size?: 'sm' | 'md' | 'lg';
     alignment?: 'left' | 'center' | 'right';
     backgroundColor?: string;
     textColor?: string;
     imageUrl?: string;
     imageAlt?: string;
-    ctaType?: 'default' | 'purchase' | 'register' | 'contact' | 'subscribe';
-    formType?: 'contact' | 'registration' | 'subscribe';
     formFields?: Array<{
-      type: 'text' | 'email' | 'textarea';
+      type: 'email' | 'text' | 'textarea';
       label: string;
       placeholder: string;
       required: boolean;
       options?: FormFieldOption[];
-    }>;
-    features?: Array<{
-      title: string;
-      description: string;
-      icon: string;
     }>;
     testimonials?: Array<{
       name: string;
@@ -57,13 +52,19 @@ export interface ComponentData {
       content: string;
       avatar: string;
     }>;
+    features?: Array<{
+      title: string;
+      description: string;
+      icon?: string;
+    }>;
     pricingPlans?: Array<{
       name: string;
       price: string;
+      description: string;
       features: string[];
       ctaText: string;
-      ctaLink: string;
-      popular: boolean;
+      ctaLink?: string;
+      popular?: boolean;
     }>;
   };
 }

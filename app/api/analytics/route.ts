@@ -1,57 +1,68 @@
-import { NextResponse, NextRequest } from 'next/server';
-import { db } from '@/app/lib/firebase';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { NextResponse } from 'next/server';
+import { recordVisit, recordConversion, getAnalytics } from '@/app/lib/analytics';
 
-export const dynamic = 'force-dynamic';
-
-export async function GET(request: NextRequest) {
+export async function POST(request: Request) {
   try {
-    const searchParams = request.nextUrl.searchParams;
+    const body = await request.json();
+    const { slug, userId, type, metadata } = body;
+
+    if (!slug || !userId) {
+      return NextResponse.json(
+        { error: 'Slug dan userId diperlukan' },
+        { status: 400 }
+      );
+    }
+
+    let result;
+    if (type === 'conversion') {
+      result = await recordConversion(slug, userId, metadata);
+    } else {
+      result = await recordVisit(slug, userId, metadata);
+    }
+
+    if (!result.success) {
+      return NextResponse.json(
+        { error: 'Gagal mencatat analytics' },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error('Error in analytics API:', error);
+    return NextResponse.json(
+      { error: 'Terjadi kesalahan internal' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function GET(request: Request) {
+  try {
+    const { searchParams } = new URL(request.url);
     const slug = searchParams.get('slug');
     const userId = searchParams.get('userId');
 
     if (!slug || !userId) {
       return NextResponse.json(
-        { success: false, error: 'Slug dan userId diperlukan' },
+        { error: 'Slug dan userId diperlukan' },
         { status: 400 }
       );
     }
 
-    const landingPagesRef = collection(db, 'landing_pages');
-    const q = query(
-      landingPagesRef,
-      where('slug', '==', slug),
-      where('userId', '==', userId)
-    );
-
-    const querySnapshot = await getDocs(q);
-    if (querySnapshot.empty) {
+    const analytics = await getAnalytics(slug, userId);
+    if (!analytics) {
       return NextResponse.json(
-        { success: false, error: 'Landing page tidak ditemukan' },
+        { error: 'Data analytics tidak ditemukan' },
         { status: 404 }
       );
     }
 
-    const doc = querySnapshot.docs[0];
-    const data = doc.data();
-
-    return NextResponse.json({
-      success: true,
-      data: {
-        id: doc.id,
-        title: data.title,
-        analytics: data.analytics || {
-          views: 0,
-          conversions: 0,
-          visitors: 0,
-          visitHistory: []
-        }
-      }
-    });
+    return NextResponse.json(analytics);
   } catch (error) {
-    console.error('Error fetching analytics:', error);
+    console.error('Error in analytics API:', error);
     return NextResponse.json(
-      { success: false, error: 'Gagal mengambil data analytics' },
+      { error: 'Terjadi kesalahan internal' },
       { status: 500 }
     );
   }
