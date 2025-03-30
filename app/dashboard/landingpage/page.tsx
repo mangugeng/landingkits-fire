@@ -120,25 +120,6 @@ export default function LandingPages() {
 
   return (
     <div className="container mx-auto py-8">
-      {/* Header */}
-      <div className="mb-6 lg:mb-8">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Landing Pages</h1>
-            <p className="mt-1 text-sm text-gray-500">
-              Kelola semua landing page Anda
-            </p>
-          </div>
-          <Link
-            href="/dashboard/landingpage/create"
-            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-          >
-            <DocumentPlusIcon className="h-5 w-5 mr-2" />
-            Buat Landing Page Baru
-          </Link>
-        </div>
-      </div>
-
       {/* Content */}
       {landingPages.length === 0 ? (
         <div className="text-center py-12">
@@ -159,6 +140,17 @@ export default function LandingPages() {
         </div>
       ) : (
         <>
+          {/* Create Button */}
+          <div className="mb-6 flex justify-end">
+            <Link
+              href="/dashboard/landingpage/create"
+              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            >
+              <DocumentPlusIcon className="h-5 w-5 mr-2" />
+              Buat Landing Page Baru
+            </Link>
+          </div>
+
           {/* Desktop Table */}
           <div className="hidden md:block">
             <table className="min-w-full divide-y divide-gray-200">

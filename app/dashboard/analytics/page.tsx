@@ -87,34 +87,25 @@ export default function AnalyticsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Analytics</h1>
-          <p className="mt-1 text-sm text-gray-500">
-            Pantau performa landing page Anda
-          </p>
-        </div>
-        <div className="w-full sm:w-64">
-          <select
-            value={selectedPage || ''}
-            onChange={(e) => setSelectedPage(e.target.value)}
-            className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-          >
-            <option value="">Pilih Landing Page</option>
-            {pages.map((page) => (
-              <option key={page.id} value={page.id}>
-                {page.title}
-              </option>
-            ))}
-          </select>
-        </div>
+      <div className="w-full sm:w-64">
+        <select
+          value={selectedPage || ''}
+          onChange={(e) => setSelectedPage(e.target.value)}
+          className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+        >
+          {pages.map((page) => (
+            <option key={page.id} value={page.id}>
+              {page.title}
+            </option>
+          ))}
+        </select>
       </div>
 
       {selectedPage && analyticsData ? (
         <AnalyticsDashboard analyticsData={analyticsData} />
       ) : (
-        <div className="text-center text-gray-500 py-8">
-          Pilih landing page untuk melihat analytics
+        <div className="text-center py-12">
+          <p className="text-gray-500">Pilih landing page untuk melihat analytics</p>
         </div>
       )}
     </div>

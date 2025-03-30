@@ -1,14 +1,95 @@
 'use client';
 
 import { useState } from 'react';
-import DashboardSidebar from '../components/dashboard/DashboardSidebar';
 import Link from 'next/link';
-import Image from 'next/image';
-import { useRouter } from 'next/navigation';
-import { auth } from '../lib/firebase';
-import { signOut } from 'firebase/auth';
-import { AuthProvider } from '@/app/context/AuthContext';
-import { Toaster } from '@/app/components/ui/toaster';
+import { usePathname } from 'next/navigation';
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { AuthProvider } from "@/app/contexts/AuthContext";
+import {
+  Menu,
+  X,
+  Home,
+  FileText,
+  Files,
+  MessageSquare,
+  BarChart,
+  Search,
+  Globe,
+  CreditCard,
+  User,
+  Settings,
+  HelpCircle,
+} from 'lucide-react';
+
+const navigation = [
+  { 
+    name: 'Dashboard', 
+    href: '/dashboard', 
+    icon: Home,
+    description: 'Ringkasan aktivitas dan statistik'
+  },
+  { 
+    name: 'Landing Pages', 
+    href: '/dashboard/landingpage', 
+    icon: FileText,
+    description: 'Kelola landing page Anda'
+  },
+  { 
+    name: 'Template', 
+    href: '/dashboard/templates', 
+    icon: Files,
+    description: 'Pilih dan sesuaikan template'
+  },
+  { 
+    name: 'Pesan', 
+    href: '/dashboard/messages', 
+    icon: MessageSquare,
+    description: 'Lihat dan balas pesan'
+  },
+  { 
+    name: 'Analytics', 
+    href: '/dashboard/analytics', 
+    icon: BarChart,
+    description: 'Analisis performa landing page'
+  },
+  { 
+    name: 'SEO', 
+    href: '/dashboard/seo', 
+    icon: Search,
+    description: 'Optimalkan SEO landing page'
+  },
+  { 
+    name: 'Domains', 
+    href: '/dashboard/domains', 
+    icon: Globe,
+    description: 'Kelola domain dan subdomain'
+  },
+  { 
+    name: 'Subscription', 
+    href: '/dashboard/subscription', 
+    icon: CreditCard,
+    description: 'Kelola langganan dan pembayaran'
+  },
+  { 
+    name: 'Profile', 
+    href: '/dashboard/profile', 
+    icon: User,
+    description: 'Atur profil dan preferensi'
+  },
+  { 
+    name: 'Settings', 
+    href: '/dashboard/settings', 
+    icon: Settings,
+    description: 'Konfigurasi akun dan sistem'
+  },
+  {
+    name: 'Help',
+    href: '/dashboard/help',
+    icon: HelpCircle,
+  },
+];
 
 export default function DashboardLayout({
   children,
@@ -16,94 +97,122 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const router = useRouter();
-
-  const handleLogout = async () => {
-    try {
-      await signOut(auth);
-      router.push('/auth');
-    } catch (error) {
-      console.error('Error logging out:', error);
-    }
-  };
+  const pathname = usePathname();
 
   return (
     <AuthProvider>
-      <div className="min-h-screen bg-gray-100">
-        {/* Mobile sidebar overlay */}
-        {sidebarOpen && (
-          <div className="fixed inset-0 z-40 lg:hidden">
-            <div className="fixed inset-0 bg-gray-600 bg-opacity-75" onClick={() => setSidebarOpen(false)} />
-            <div className="fixed inset-y-0 left-0 flex w-64 flex-col bg-white">
-              <div className="flex h-16 flex-shrink-0 items-center justify-between border-b border-gray-200 px-4">
-                <Link href="/dashboard" className="flex items-center space-x-2">
-                  <Image src="/logo.svg" alt="LandingKits Logo" width={32} height={32} />
-                  <span className="text-xl font-semibold text-gray-900">LandingKits</span>
-                </Link>
-                <button
-                  type="button"
-                  className="rounded-md text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  onClick={() => setSidebarOpen(false)}
-                >
-                  <span className="sr-only">Close sidebar</span>
-                  <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-              <div className="flex flex-1 flex-col overflow-y-auto p-4">
-                <DashboardSidebar />
-              </div>
+      <div className="min-h-screen bg-gray-50">
+        {/* Mobile Sidebar */}
+        <div className={cn(
+          "fixed inset-0 z-50 lg:hidden",
+          sidebarOpen ? "block" : "hidden"
+        )}>
+          <div className="fixed inset-0 bg-gray-900/80" onClick={() => setSidebarOpen(false)} />
+          <div className="fixed inset-y-0 left-0 w-full max-w-xs bg-white">
+            <div className="flex h-16 items-center justify-between px-4 border-b">
+              <h2 className="text-lg font-semibold">Dashboard</h2>
+              <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(false)}>
+                <X className="h-6 w-6" />
+              </Button>
             </div>
-          </div>
-        )}
-
-        {/* Static sidebar for desktop */}
-        <div className="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-64 lg:flex-col">
-          <div className="flex min-h-0 flex-1 flex-col border-r border-gray-200 bg-white">
-            <div className="flex h-16 flex-shrink-0 items-center border-b border-gray-200 px-4">
-              <Link href="/dashboard" className="flex items-center space-x-2">
-                <Image src="/logo.svg" alt="LandingKits Logo" width={32} height={32} />
-                <span className="text-xl font-semibold text-gray-900">LandingKits</span>
-              </Link>
-            </div>
-            <div className="flex flex-1 flex-col overflow-y-auto p-4">
-              <DashboardSidebar />
-            </div>
+            <ScrollArea className="h-[calc(100vh-4rem)]">
+              <nav className="space-y-1 p-4">
+                {navigation.map((item) => {
+                  const isActive = pathname === item.href;
+                  return (
+                    <Link
+                      key={item.name}
+                      href={item.href}
+                      className={cn(
+                        "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                        isActive
+                          ? "bg-blue-50 text-blue-600"
+                          : "text-gray-500 hover:bg-gray-100 hover:text-gray-900"
+                      )}
+                      onClick={() => setSidebarOpen(false)}
+                    >
+                      <item.icon className="h-5 w-5" />
+                      {item.name}
+                    </Link>
+                  );
+                })}
+              </nav>
+            </ScrollArea>
           </div>
         </div>
 
-        {/* Main content */}
-        <div className="flex flex-1 flex-col lg:pl-64">
-          {/* Mobile header */}
-          <div className="sticky top-0 z-10 flex h-16 flex-shrink-0 items-center border-b border-gray-200 bg-white lg:hidden">
-            <div className="flex items-center">
-              <button
-                type="button"
-                className="border-r border-gray-200 px-4 text-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 lg:hidden"
-                onClick={() => setSidebarOpen(true)}
-              >
-                <span className="sr-only">Open sidebar</span>
-                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
-                </svg>
-              </button>
-              <Link href="/dashboard" className="flex items-center space-x-2 ml-4">
-                <Image src="/logo.svg" alt="LandingKits Logo" width={32} height={32} />
-                <span className="text-xl font-semibold text-gray-900">LandingKits</span>
-              </Link>
+        {/* Desktop Sidebar */}
+        <div className="hidden lg:fixed lg:inset-y-0 lg:z-50 lg:flex lg:w-72 lg:flex-col">
+          <div className="flex grow flex-col gap-y-5 overflow-y-auto border-r bg-white px-6 pb-4">
+            <div className="flex h-16 shrink-0 items-center border-b">
+              <h2 className="text-lg font-semibold">Dashboard</h2>
+            </div>
+            <nav className="flex flex-1 flex-col">
+              <ul role="list" className="flex flex-1 flex-col gap-y-7">
+                <li>
+                  <ul role="list" className="-mx-2 space-y-1">
+                    {navigation.map((item) => {
+                      const isActive = pathname === item.href;
+                      return (
+                        <li key={item.name}>
+                          <Link
+                            href={item.href}
+                            className={cn(
+                              "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                              isActive
+                                ? "bg-blue-50 text-blue-600"
+                                : "text-gray-500 hover:bg-gray-100 hover:text-gray-900"
+                            )}
+                          >
+                            <item.icon className="h-5 w-5" />
+                            {item.name}
+                          </Link>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </li>
+              </ul>
+            </nav>
+          </div>
+        </div>
+
+        {/* Main Content */}
+        <div className="lg:pl-72">
+          <div className="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-x-4 border-b bg-white px-4 shadow-sm sm:gap-x-6 sm:px-6 lg:px-8">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="lg:hidden"
+              onClick={() => setSidebarOpen(true)}
+            >
+              <Menu className="h-6 w-6" />
+            </Button>
+            <div className="flex items-center gap-2">
+              {navigation.map((item) => {
+                if (pathname === item.href) {
+                  return (
+                    <div key={item.name} className="flex items-center gap-2">
+                      <item.icon className="h-5 w-5 text-blue-600" />
+                      <div className="flex items-center gap-2">
+                        <h1 className="text-lg font-semibold text-gray-900">{item.name}</h1>
+                        <span className="text-gray-400">|</span>
+                        <p className="text-sm text-gray-500">{item.description}</p>
+                      </div>
+                    </div>
+                  );
+                }
+                return null;
+              })}
             </div>
           </div>
 
-          <main className="flex-1">
-            <div className="py-6">
-              <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-                {children}
-              </div>
+          <main className="py-10">
+            <div className="px-4 sm:px-6 lg:px-8">
+              {children}
             </div>
           </main>
         </div>
-        <Toaster />
       </div>
     </AuthProvider>
   );

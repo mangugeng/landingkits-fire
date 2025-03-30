@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "delete-help-data": "node scripts/delete-help-data.js",
+    "seed-help-data": "node scripts/seed-help-data.js"
   },
   "dependencies": {
     "@auth/firebase-adapter": "^2.8.0",
@@ -31,6 +33,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
+    "dotenv": "^16.4.7",
     "firebase": "^9.23.0",
     "firebase-admin": "^12.7.0",
     "firebase-functions": "^6.3.2",
@@ -65,6 +68,7 @@
     "eslint-config-next": "14.1.0",
     "postcss": "^8.4.35",
     "tailwindcss": "^3.3.0",
+    "ts-node": "^10.9.2",
     "typescript": "5.8.2"
   }
 }

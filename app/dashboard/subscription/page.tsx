@@ -294,86 +294,71 @@ export default function SubscriptionPage() {
 
   return (
     <>
-      {/* Header */}
-      <div className="mb-6 lg:mb-8">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Subscription</h1>
-            <p className="mt-1 text-sm text-gray-500">
-              Kelola subscription dan pembayaran Anda
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* Content */}
-      <div className="space-y-8">
-        {/* Plans */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {plans.map((plan) => (
-            <div
-              key={plan.id}
-              className={`bg-white rounded-lg shadow-sm border ${plan.isPopular ? 'border-blue-500' : 'border-gray-200'
-                } p-6`}
-            >
-              {plan.isPopular && (
-                <span className="inline-block px-3 py-1 text-xs font-semibold text-blue-600 bg-blue-50 rounded-full mb-4">
-                  Paling Populer
-                </span>
-              )}
-              <h3 className="text-lg font-semibold text-gray-900">{plan.name}</h3>
-              <p className="mt-2 text-sm text-gray-500">{plan.description}</p>
-              <div className="mt-4">
-                <span className="text-2xl font-bold text-gray-900">
-                  {typeof plan.price === 'object' ? (
-                    <>
-                      Rp {plan.price[selectedInterval].toLocaleString('id-ID')}
-                      <span className="text-sm font-normal text-gray-500">
-                        /{selectedInterval === 'monthly' ? 'bulan' : 'tahun'}
-                      </span>
-                    </>
-                  ) : (
-                    'Custom'
-                  )}
-                </span>
-              </div>
-              <ul className="mt-6 space-y-4">
-                {plan.features.map((feature, index) => (
-                  <li key={index} className="flex items-start">
-                    <svg
-                      className="h-5 w-5 text-green-500 mr-2"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M5 13l4 4L19 7"
-                      />
-                    </svg>
-                    <span className="text-sm text-gray-600">{feature}</span>
-                  </li>
-                ))}
-              </ul>
-              <button
-                onClick={() => handleSubscribe(plan)}
-                disabled={isLoading}
-                className={`mt-8 w-full px-4 py-2 rounded-md text-sm font-medium ${plan.isPopular
-                    ? 'bg-blue-600 text-white hover:bg-blue-700'
-                    : 'bg-gray-100 text-gray-900 hover:bg-gray-200'
-                  } focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50`}
-              >
-                {isLoading ? 'Memproses...' : plan.buttonText}
-              </button>
+      {/* Pricing Plans */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {plans.map((plan) => (
+          <div
+            key={plan.id}
+            className={`bg-white rounded-lg shadow-sm border ${plan.isPopular ? 'border-blue-500' : 'border-gray-200'
+              } p-6`}
+          >
+            {plan.isPopular && (
+              <span className="inline-block px-3 py-1 text-xs font-semibold text-blue-600 bg-blue-50 rounded-full mb-4">
+                Paling Populer
+              </span>
+            )}
+            <h3 className="text-lg font-semibold text-gray-900">{plan.name}</h3>
+            <p className="mt-2 text-sm text-gray-500">{plan.description}</p>
+            <div className="mt-4">
+              <span className="text-2xl font-bold text-gray-900">
+                {typeof plan.price === 'object' ? (
+                  <>
+                    Rp {plan.price[selectedInterval].toLocaleString('id-ID')}
+                    <span className="text-sm font-normal text-gray-500">
+                      /{selectedInterval === 'monthly' ? 'bulan' : 'tahun'}
+                    </span>
+                  </>
+                ) : (
+                  'Custom'
+                )}
+              </span>
             </div>
-          ))}
-        </div>
-
-        {/* Transaction History */}
-        <TransactionHistoryTable transactions={transactions} plans={plans} />
+            <ul className="mt-6 space-y-4">
+              {plan.features.map((feature, index) => (
+                <li key={index} className="flex items-start">
+                  <svg
+                    className="h-5 w-5 text-green-500 mr-2"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M5 13l4 4L19 7"
+                    />
+                  </svg>
+                  <span className="text-sm text-gray-600">{feature}</span>
+                </li>
+              ))}
+            </ul>
+            <button
+              onClick={() => handleSubscribe(plan)}
+              disabled={isLoading}
+              className={`mt-8 w-full px-4 py-2 rounded-md text-sm font-medium ${plan.isPopular
+                  ? 'bg-blue-600 text-white hover:bg-blue-700'
+                  : 'bg-gray-100 text-gray-900 hover:bg-gray-200'
+                } focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50`}
+            >
+              {isLoading ? 'Memproses...' : plan.buttonText}
+            </button>
+          </div>
+        ))}
       </div>
+
+      {/* Transaction History */}
+      <TransactionHistoryTable transactions={transactions} plans={plans} />
     </>
   );
 } 

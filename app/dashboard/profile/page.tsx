@@ -319,12 +319,6 @@ export default function ProfilePage() {
   return (
     <div className="container mx-auto py-6">
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center">
-            <FiUser className="mr-2 h-5 w-5" />
-            Profil Saya
-          </CardTitle>
-        </CardHeader>
         <CardContent>
           <Tabs defaultValue="profile" className="space-y-4">
             <TabsList>

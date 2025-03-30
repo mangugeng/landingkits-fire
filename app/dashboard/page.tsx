@@ -122,25 +122,6 @@ export default function DashboardPage() {
 
   return (
     <>
-      {/* Header */}
-      <div className="mb-6 lg:mb-8">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-            <p className="mt-1 text-sm text-gray-500">
-              Kelola landing page dan lihat statistik Anda
-            </p>
-          </div>
-          <Link
-            href="/dashboard/landingpage/create"
-            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-          >
-            <FiPlus className="h-5 w-5 mr-2" />
-            Buat Landing Page Baru
-          </Link>
-        </div>
-      </div>
-
       {/* Mobile Grid Menu */}
       <div className="md:hidden grid grid-cols-2 sm:grid-cols-3 gap-4 mb-6">
         <div className="flex flex-col items-center justify-center p-4 bg-white rounded-lg shadow">

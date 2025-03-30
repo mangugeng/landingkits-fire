@@ -13,7 +13,8 @@ import {
   Cog6ToothIcon,
   ArrowRightOnRectangleIcon,
   Squares2X2Icon,
-  ChatBubbleLeftRightIcon
+  ChatBubbleLeftRightIcon,
+  MagnifyingGlassIcon
 } from '@heroicons/react/24/outline';
 import { cn } from '@/lib/utils';
 
@@ -23,6 +24,7 @@ const navigation = [
   { name: 'Template', href: '/dashboard/templates', icon: Squares2X2Icon },
   { name: 'Pesan', href: '/dashboard/messages', icon: ChatBubbleLeftRightIcon },
   { name: 'Analytics', href: '/dashboard/analytics', icon: ChartBarIcon },
+  { name: 'SEO', href: '/dashboard/seo', icon: MagnifyingGlassIcon },
   { name: 'Settings', href: '/dashboard/settings', icon: Cog6ToothIcon },
 ];
 

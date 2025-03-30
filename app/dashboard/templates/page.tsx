@@ -168,10 +168,6 @@ export default function TemplatesPage() {
   return (
     <div className="container mx-auto py-8">
       <div className="flex flex-col gap-6">
-        <div className="flex justify-between items-center">
-          <h1 className="text-3xl font-bold">Template</h1>
-        </div>
-
         <div className="flex gap-4">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500" />
