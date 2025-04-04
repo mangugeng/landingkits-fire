@@ -392,7 +392,7 @@ export default function ComponentRenderer({
                 Titik ini akan menjadi tujuan scroll saat link dengan ID yang sama diklik
               </div>
           </div>
-          );
+        );
         }
         return (
           <div 
@@ -440,7 +440,7 @@ export default function ComponentRenderer({
             className="p-1 text-gray-400 hover:text-blue-500 rounded-lg hover:bg-blue-50 transition-colors"
             onClick={onSelect}
             title="Edit"
-          >
+      >
             <FiEdit2 className="w-4 h-4" />
           </button>
           <button
