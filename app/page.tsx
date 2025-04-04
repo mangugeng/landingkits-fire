@@ -26,6 +26,8 @@ import ThemeProvider from '@/app/components/ThemeProvider';
 import LayoutWrapper from '@/app/components/LayoutWrapper';
 import { detectBrowser, detectDevice, detectOS, getUserLocation } from '@/app/utils/analytics';
 import ComponentRenderer from '@/app/components/editor/ComponentRenderer';
+import { useAuth } from '@/app/contexts/AuthContext';
+import { useRouter } from 'next/navigation';
 
 interface LandingPage {
   id: string;
@@ -317,10 +319,17 @@ const renderComponent = (component: ComponentData, pageData: LandingPage) => {
 };
 
 export default function Home() {
+  const { user } = useAuth();
   const [page, setPage] = useState<LandingPage | null>(null);
   const [loading, setLoading] = useState(true);
+  const router = useRouter();
 
   useEffect(() => {
+    if (user) {
+      router.push('/dashboard');
+      return;
+    }
+
     const fetchPage = async () => {
       try {
         // Get the current hostname
@@ -478,7 +487,7 @@ export default function Home() {
     };
 
     fetchPage();
-  }, []);
+  }, [user, router]);
 
   if (loading) {
     return (

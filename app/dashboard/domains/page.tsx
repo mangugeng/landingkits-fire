@@ -59,17 +59,14 @@ export default function DomainsPage() {
       );
       const querySnapshot = await getDocs(q);
       
-      const landingPagesData = querySnapshot.docs.map(doc => {
-        const data = doc.data();
-        return {
-          id: doc.id,
-          title: data.title,
-          slug: data.slug,
-          status: data.status,
-          createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(data.createdAt),
-          updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate() : new Date(data.updatedAt),
-        };
-      }) as LandingPage[];
+      const landingPagesData = querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        title: doc.data().title,
+        slug: doc.data().slug,
+        status: doc.data().status,
+        createdAt: doc.data().createdAt?.toDate(),
+        updatedAt: doc.data().updatedAt?.toDate(),
+      })) as LandingPage[];
       
       setLandingPages(landingPagesData);
     } catch (err) {
@@ -86,15 +83,12 @@ export default function DomainsPage() {
       const q = query(domainsRef, where('userId', '==', user.uid));
       const querySnapshot = await getDocs(q);
       
-      const domainsData = querySnapshot.docs.map(doc => {
-        const data = doc.data();
-        return {
-          id: doc.id,
-          ...data,
-          createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(data.createdAt),
-          updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate() : new Date(data.updatedAt),
-        };
-      }) as Domain[];
+      const domainsData = querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        createdAt: doc.data().createdAt?.toDate(),
+        updatedAt: doc.data().updatedAt?.toDate(),
+      })) as Domain[];
       
       setDomains(domainsData);
     } catch (err) {
