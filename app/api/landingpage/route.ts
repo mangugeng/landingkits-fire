@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/app/lib/firebase';
-import { collection, addDoc, Timestamp } from 'firebase/firestore';
+import { collection, addDoc, getDocs, query, where, Timestamp } from 'firebase/firestore';
 
 export async function POST(request: Request) {
   try {
@@ -91,6 +91,47 @@ export async function POST(request: Request) {
     console.error('Error creating landing page:', error);
     return NextResponse.json(
       { success: false, error: 'Gagal membuat landing page' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function GET(request: Request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const slug = searchParams.get('slug');
+
+    if (!slug) {
+      return NextResponse.json(
+        { success: false, error: 'Slug diperlukan' },
+        { status: 400 }
+      );
+    }
+
+    const q = query(collection(db, 'landing_pages'), where('slug', '==', slug));
+    const querySnapshot = await getDocs(q);
+
+    if (querySnapshot.empty) {
+      return NextResponse.json(
+        { success: false, error: 'Landing page tidak ditemukan' },
+        { status: 404 }
+      );
+    }
+
+    const doc = querySnapshot.docs[0];
+    const data = doc.data();
+
+    return NextResponse.json({
+      success: true,
+      data: {
+        id: doc.id,
+        ...data
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching landing page:', error);
+    return NextResponse.json(
+      { success: false, error: 'Gagal mengambil data landing page' },
       { status: 500 }
     );
   }

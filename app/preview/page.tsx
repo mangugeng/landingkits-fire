@@ -5,17 +5,21 @@ import Link from 'next/link';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { toast } from 'react-hot-toast';
+import { ComponentData, ThemeType, ThemeConfig } from '@/app/types/editor';
+import ThemeProvider from '@/app/components/ThemeProvider';
 
 interface LandingPage {
   id: string;
   title: string;
   description: string;
-  content: any;  // konten JSON dari database
+  content: ComponentData[];
   category: string;
   slug: string;
   conversionRate?: number;
   createdAt: string;
   isFeatured?: boolean;
+  theme: ThemeType;
+  themeConfig: ThemeConfig;
 }
 
 export default function PreviewPage() {
@@ -54,96 +58,101 @@ export default function PreviewPage() {
   }, []);
 
   // Fungsi untuk mengkonversi konten JSON menjadi HTML
-  const renderContent = (content: any) => {
-    if (!content) return '';
+  const renderContent = (content: ComponentData[]) => {
+    if (!content || content.length === 0) return '';
 
     // Fungsi rekursif untuk merender elemen
-    const renderElement = (element: any): string => {
+    const renderElement = (element: ComponentData): string => {
       if (!element) return '';
 
-      // Jika elemen adalah string, kembalikan langsung
-      if (typeof element === 'string') return element;
-
-      // Jika elemen adalah array, render setiap item
-      if (Array.isArray(element)) {
-        return element.map(item => renderElement(item)).join('');
+      switch (element.type) {
+        case 'heading':
+          return `<h${element.props?.level || 1} class="heading text-4xl font-bold mb-4">${element.props?.text || ''}</h${element.props?.level || 1}>`;
+        case 'paragraph':
+          return `<p class="paragraph text-lg mb-4">${element.props?.text || ''}</p>`;
+        case 'image':
+          return `<img src="${element.props?.src || ''}" alt="${element.props?.alt || ''}" class="image w-full h-auto mb-4" />`;
+        case 'button':
+          return `<button class="button ${element.props?.variant === 'primary' ? 'button-primary' : 'button-secondary'}">${element.props?.buttonText || ''}</button>`;
+        case 'form':
+          return `
+            <form class="form space-y-4">
+              ${element.props?.formFields?.map(field => `
+                <input type="${field.type}" placeholder="${field.placeholder}" class="input w-full p-2 border rounded" />
+              `).join('') || ''}
+              <button type="submit" class="button button-primary w-full">${element.props?.buttonText || 'Submit'}</button>
+            </form>
+          `;
+        case 'features':
+          return `
+            <div class="features grid grid-cols-1 md:grid-cols-3 gap-8">
+              ${element.props?.features?.map(feature => `
+                <div class="feature text-center">
+                  <h3 class="text-xl font-bold mb-2">${feature.title}</h3>
+                  <p>${feature.description}</p>
+                </div>
+              `).join('') || ''}
+            </div>
+          `;
+        case 'testimonial':
+          return `
+            <div class="testimonial bg-gray-50 p-6 rounded-lg">
+              ${element.props?.testimonials?.map(testimonial => `
+                <div class="mb-8">
+                  <p class="mb-4">${testimonial.content}</p>
+                  <div class="flex items-center">
+                    <img src="${testimonial.avatar}" alt="${testimonial.name}" class="w-12 h-12 rounded-full mr-4" />
+                    <div>
+                      <p class="font-bold">${testimonial.name}</p>
+                      <p class="text-gray-600">${testimonial.role}</p>
+                    </div>
+                  </div>
+                </div>
+              `).join('') || ''}
+            </div>
+          `;
+        case 'pricing':
+          return `
+            <div class="pricing grid grid-cols-1 md:grid-cols-3 gap-8">
+              ${element.props?.pricingPlans?.map(plan => `
+                <div class="pricing-plan border rounded-lg p-6">
+                  <h3 class="text-xl font-bold mb-2">${plan.name}</h3>
+                  <p class="text-3xl font-bold mb-4">${plan.price}</p>
+                  <ul class="space-y-2 mb-6">
+                    ${plan.features?.map(feature => `
+                      <li>${feature}</li>
+                    `).join('') || ''}
+                  </ul>
+                  <button class="button button-primary w-full">${plan.ctaText || 'Get Started'}</button>
+                </div>
+              `).join('') || ''}
+            </div>
+          `;
+        case 'cta':
+          return `
+            <div class="cta text-center py-12">
+              <h2 class="text-3xl font-bold mb-4">${element.props?.title || ''}</h2>
+              <p class="mb-6">${element.props?.description || ''}</p>
+              <button class="button button-primary">${element.props?.buttonText || 'Get Started'}</button>
+            </div>
+          `;
+        case 'spacer':
+          return `<div class="spacer h-${element.props?.size || 8}"></div>`;
+        case 'hero':
+          return `
+            <div class="hero text-center py-16">
+              <h1 class="text-5xl font-bold mb-6">${element.props?.title || ''}</h1>
+              <p class="text-xl mb-8">${element.props?.description || ''}</p>
+              <button class="button button-primary">${element.props?.buttonText || 'Get Started'}</button>
+            </div>
+          `;
+        default:
+          return '';
       }
-
-      // Jika elemen adalah objek dengan properti type
-      if (element.type) {
-        const { type, props, content: elementContent } = element;
-        
-        // Filter props yang tidak valid untuk HTML
-        const validProps = props ? Object.entries(props)
-          .filter(([key]) => !['features', 'testimonials', 'formfields', 'pricingplans'].includes(key))
-          .map(([key, value]) => `${key}="${value}"`)
-          .join(' ') : '';
-
-        const renderedContent = elementContent ? renderElement(elementContent) : '';
-
-        // Tambahkan class default untuk styling berdasarkan tipe
-        let defaultClass = '';
-        let wrapperClass = '';
-        switch (type) {
-          case 'heading':
-            defaultClass = 'text-4xl font-bold text-gray-900';
-            wrapperClass = 'max-w-4xl mx-auto px-4 py-12';
-            break;
-          case 'paragraph':
-            defaultClass = 'text-lg text-gray-600';
-            wrapperClass = 'max-w-4xl mx-auto px-4 py-12';
-            break;
-          case 'image':
-            defaultClass = 'w-full h-auto rounded-lg';
-            wrapperClass = 'max-w-4xl mx-auto px-4 py-12';
-            break;
-          case 'button':
-            defaultClass = `px-6 py-3 rounded-md text-white font-medium ${
-              props?.variant === 'primary'
-                ? 'bg-blue-600 hover:bg-blue-700'
-                : 'bg-gray-600 hover:bg-gray-700'
-            }`;
-            wrapperClass = 'max-w-4xl mx-auto px-4 py-12';
-            break;
-          case 'cta':
-            defaultClass = 'p-8 bg-blue-600 text-white rounded-lg text-center';
-            wrapperClass = 'max-w-4xl mx-auto px-4 py-12';
-            break;
-          case 'form':
-            defaultClass = 'p-6 bg-gray-50 rounded-lg';
-            wrapperClass = 'max-w-4xl mx-auto px-4 py-12';
-            break;
-          case 'features':
-            defaultClass = 'grid grid-cols-1 md:grid-cols-3 gap-6';
-            wrapperClass = 'max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12';
-            break;
-          case 'testimonial':
-            defaultClass = 'grid grid-cols-1 md:grid-cols-3 gap-6';
-            wrapperClass = 'max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12';
-            break;
-          case 'pricing':
-            defaultClass = 'grid grid-cols-1 md:grid-cols-3 gap-6';
-            wrapperClass = 'max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12';
-            break;
-          default:
-            defaultClass = 'w-full h-full';
-            wrapperClass = 'max-w-4xl mx-auto px-4 py-12';
-        }
-
-        const className = props?.className ? `${props.className} ${defaultClass}` : defaultClass;
-
-        return `
-          <div class="${wrapperClass}">
-            <${type} ${validProps} class="${className}">${renderedContent}</${type}>
-          </div>
-        `;
-      }
-
-      return '';
     };
 
     // Render konten utama
-    const renderedContent = renderElement(content);
+    const renderedContent = content.map(element => renderElement(element)).join('');
     return `
       <div class="min-h-screen bg-gradient-to-b from-gray-50 to-white">
         ${renderedContent}
@@ -202,40 +211,42 @@ export default function PreviewPage() {
             
             <div className="flex overflow-x-auto md:grid md:grid-cols-2 lg:grid-cols-3 gap-8 pb-4 md:pb-0 snap-x snap-mandatory">
               {landingPages.map((page) => (
-                <div key={page.id} className="flex-none w-[85vw] md:w-auto bg-white rounded-lg shadow-xl overflow-hidden hover:shadow-2xl transition-shadow duration-300 snap-center">
-                  <div className="relative h-64 overflow-hidden bg-gray-50">
-                    <div 
-                      className="absolute inset-0 w-[250%] h-[250%] transform scale-[0.4] origin-top-left overflow-auto"
-                      dangerouslySetInnerHTML={{ __html: renderContent(page.content) }}
-                    />
-                    {page.conversionRate && (
-                      <div className="absolute top-4 left-4 z-10">
-                        <span className="px-3 py-1 bg-green-600 text-white text-sm rounded-full">
-                          {page.conversionRate}% Konversi
-                        </span>
-                      </div>
-                    )}
+                <ThemeProvider key={page.id} theme={page.theme}>
+                  <div className="flex-none w-[85vw] md:w-auto bg-white rounded-lg shadow-xl overflow-hidden hover:shadow-2xl transition-shadow duration-300 snap-center">
+                    <div className="relative h-64 overflow-hidden bg-gray-50">
+                      <div 
+                        className="absolute inset-0 w-[250%] h-[250%] transform scale-[0.4] origin-top-left overflow-auto"
+                        dangerouslySetInnerHTML={{ __html: renderContent(page.content) }}
+                      />
+                      {page.conversionRate && (
+                        <div className="absolute top-4 left-4 z-10">
+                          <span className="px-3 py-1 bg-green-600 text-white text-sm rounded-full">
+                            {page.conversionRate}% Konversi
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                    <div className="p-6 bg-gradient-to-br from-blue-50 to-indigo-50">
+                      <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                        {page.title}
+                      </h3>
+                      <p className="text-gray-600 mb-4">
+                        {page.description}
+                      </p>
+                      <a
+                        href={`https://${page.slug}.landingkits.com`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-white hover:bg-gray-50 transition-colors duration-200 shadow-md"
+                      >
+                        <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                        </svg>
+                      </a>
+                    </div>
                   </div>
-                  <div className="p-6 bg-gradient-to-br from-blue-50 to-indigo-50">
-                    <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                      {page.title}
-                    </h3>
-                    <p className="text-gray-600 mb-4">
-                      {page.description}
-                    </p>
-                    <a
-                      href={`https://${page.slug}.landingkits.com`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-white hover:bg-gray-50 transition-colors duration-200 shadow-md"
-                    >
-                      <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                      </svg>
-                    </a>
-                  </div>
-                </div>
+                </ThemeProvider>
               ))}
             </div>
           </div>

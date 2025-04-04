@@ -2,8 +2,13 @@
 
 import { usePathname } from 'next/navigation';
 import Footer from './Footer';
+import { ComponentData } from '../types/editor';
 
-export default function FooterWrapper() {
+interface FooterWrapperProps {
+  component?: ComponentData;
+}
+
+export default function FooterWrapper({ component }: FooterWrapperProps) {
   const pathname = usePathname();
   
   // Jangan tampilkan Footer di halaman home karena sudah ada Footer di sana
@@ -11,5 +16,5 @@ export default function FooterWrapper() {
     return null;
   }
 
-  return <Footer />;
+  return <Footer component={component} />;
 } 

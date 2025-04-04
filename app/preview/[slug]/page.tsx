@@ -1,22 +1,55 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
-import { useRouter, useParams } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import { db } from '@/app/lib/firebase';
 import { collection, query, where, getDocs } from 'firebase/firestore';
-import { db } from '../../../lib/firebase';
-import { toast } from 'react-hot-toast';
+import { useParams } from 'next/navigation';
+import ComponentRenderer from '@/app/components/editor/ComponentRenderer';
 import { ComponentData } from '@/app/types/editor';
 
 interface LandingPage {
   id: string;
+  slug: string;
   title: string;
   description: string;
   content: ComponentData[];
-  status: 'draft' | 'published';
-  userId: string;
-  createdAt: string;
-  lastUpdated: string;
-  slug: string;
+  layout: {
+    type: 'boxed' | 'full-width';
+    width: string;
+    spacing: string;
+    backgroundType: 'none' | 'color' | 'image' | 'gradient';
+    backgroundColor: string;
+    backgroundImage: string;
+    gradientDirection: string;
+    gradientStartColor: string;
+    gradientEndColor: string;
+    showHeader: boolean;
+    showFooter: boolean;
+    headerSticky: boolean;
+  };
+  theme: {
+    typography: {
+      headingFont: string;
+      bodyFont: string;
+    };
+    colors: {
+      primary: string;
+      secondary: string;
+      accent: string;
+      text: string;
+      background: string;
+    };
+    spacing: {
+      component: string;
+      section: string;
+    };
+    borderRadius: string;
+    shadows: {
+      small: string;
+      medium: string;
+      large: string;
+    };
+  };
 }
 
 export default function PreviewPage() {
@@ -27,249 +60,280 @@ export default function PreviewPage() {
   useEffect(() => {
     const fetchPage = async () => {
       try {
-        const pageSlug = Array.isArray(params.slug) ? params.slug[0] : params.slug;
-        
-        // Query berdasarkan slug
+        console.log('Fetching page with slug:', params.slug);
         const q = query(
           collection(db, 'landing_pages'),
-          where('slug', '==', pageSlug)
+          where('slug', '==', params.slug)
         );
-        
         const querySnapshot = await getDocs(q);
-        
+
         if (!querySnapshot.empty) {
-          const pageDoc = querySnapshot.docs[0];
-          setPage({
-            id: pageDoc.id,
-            ...pageDoc.data()
-          } as LandingPage);
+          const doc = querySnapshot.docs[0];
+          const data = doc.data();
+          console.log('Fetched page data:', data);
+          
+          // Pastikan content ada dan merupakan array
+          const content = Array.isArray(data.content) ? data.content : [];
+          const hasHeader = content.some(item => item.type === 'header');
+          const hasFooter = content.some(item => item.type === 'footer');
+          console.log('Content data:', content);
+          
+          const pageData = {
+            id: doc.id,
+            ...data,
+            content: [
+              // Add header if it doesn't exist and showHeader is true
+              ...(data.layout?.showHeader && !hasHeader ? [{
+                id: `header-${Date.now()}`,
+                type: 'header',
+                content: '',
+                props: {
+                  logo: {
+                    src: 'https://placehold.co/200x50',
+                    alt: 'Logo',
+                    width: 200,
+                    height: 50
+                  },
+                  navigation: [
+                    { label: 'Beranda', href: '/' },
+                    { label: 'Tentang', href: '/about' },
+                    { label: 'Layanan', href: '/services' },
+                    { label: 'Kontak', href: '/contact' }
+                  ],
+                  ctaButton: {
+                    text: 'Hubungi Kami',
+                    href: '/contact',
+                    variant: 'primary'
+                  },
+                  isSticky: data.layout?.headerSticky ?? true,
+                  backgroundType: data.layout?.backgroundType || 'color',
+                  backgroundColor: data.layout?.backgroundColor || '#ffffff'
+                }
+              }] : []),
+              // Existing content
+              ...content,
+              // Add footer if it doesn't exist and showFooter is true
+              ...(data.layout?.showFooter && !hasFooter ? [{
+                id: `footer-${Date.now()}`,
+                type: 'footer',
+                content: '',
+                props: {
+                  footerLinks: [
+                    {
+                      title: 'Perusahaan',
+                      links: [
+                        { label: 'Tentang Kami', href: '/about' },
+                        { label: 'Karir', href: '/careers' },
+                        { label: 'Blog', href: '/blog' }
+                      ]
+                    },
+                    {
+                      title: 'Layanan',
+                      links: [
+                        { label: 'Produk', href: '/products' },
+                        { label: 'Solusi', href: '/solutions' },
+                        { label: 'Pricing', href: '/pricing' }
+                      ]
+                    },
+                    {
+                      title: 'Dukungan',
+                      links: [
+                        { label: 'FAQ', href: '/faq' },
+                        { label: 'Kontak', href: '/contact' },
+                        { label: 'Bantuan', href: '/help' }
+                      ]
+                    }
+                  ],
+                  socialLinks: [
+                    { platform: 'facebook', url: 'https://facebook.com' },
+                    { platform: 'twitter', url: 'https://twitter.com' },
+                    { platform: 'instagram', url: 'https://instagram.com' },
+                    { platform: 'linkedin', url: 'https://linkedin.com' }
+                  ],
+                  copyright: '© 2024 Nama Perusahaan. All rights reserved.'
+                }
+              }] : [])
+            ],
+            layout: {
+              type: data.layout?.type || 'full-width',
+              width: data.layout?.width || 'wide',
+              spacing: data.layout?.spacing || 'spacious',
+              backgroundType: data.layout?.backgroundType || 'none',
+              backgroundColor: data.layout?.backgroundColor || '#ffffff',
+              backgroundImage: data.layout?.backgroundImage || '',
+              gradientDirection: data.layout?.gradientDirection || 'to right',
+              gradientStartColor: data.layout?.gradientStartColor || '#3c87d3',
+              gradientEndColor: data.layout?.gradientEndColor || '#23853c',
+              showHeader: data.layout?.showHeader || true,
+              showFooter: data.layout?.showFooter || true,
+              headerSticky: data.layout?.headerSticky ?? true
+            },
+            theme: {
+              typography: {
+                headingFont: data.themeConfig?.typography?.headingFont || 'Montserrat, sans-serif',
+                bodyFont: data.themeConfig?.typography?.bodyFont || 'Roboto, sans-serif'
+              },
+              colors: {
+                primary: data.themeConfig?.colors?.primary || '#FF4D4D',
+                secondary: data.themeConfig?.colors?.secondary || '#4CAF50',
+                accent: data.themeConfig?.colors?.accent || '#FFC107',
+                text: data.themeConfig?.colors?.text || '#212121',
+                background: data.themeConfig?.colors?.background || '#FFFFFF'
+              },
+              spacing: {
+                component: data.themeConfig?.spacing?.component || '1.5rem',
+                section: data.themeConfig?.spacing?.section || '4rem'
+              },
+              borderRadius: data.themeConfig?.borderRadius || '0.25rem',
+              shadows: {
+                small: data.themeConfig?.shadows?.small || '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
+                medium: data.themeConfig?.shadows?.medium || '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                large: data.themeConfig?.shadows?.large || '0 10px 15px -3px rgba(0, 0, 0, 0.1)'
+              }
+            }
+          } as LandingPage;
+          
+          console.log('Processed page data:', pageData);
+          setPage(pageData);
         } else {
-          toast.error('Halaman tidak ditemukan');
+          console.error('No page found with slug:', params.slug);
         }
       } catch (error) {
         console.error('Error fetching page:', error);
-        toast.error('Gagal mengambil data landing page');
       } finally {
         setLoading(false);
       }
     };
 
-    fetchPage();
-  }, [params.slug]);
-
-  const renderComponent = (component: ComponentData) => {
-    switch (component.type) {
-      case 'heading':
-        return (
-          <div key={component.id} className="text-4xl font-bold text-gray-900 mb-4">
-            {component.content}
-          </div>
-        );
-      case 'paragraph':
-        return (
-          <div key={component.id} className="text-lg text-gray-600 mb-4">
-            {component.content}
-          </div>
-        );
-      case 'image':
-        return (
-          <div key={component.id} className="mb-4">
-            <img
-              src={component.content}
-              alt=""
-              className="w-full h-auto rounded-lg"
-            />
-          </div>
-        );
-      case 'button':
-        return (
-          <div key={component.id} className="mb-4">
-            <button
-              className={`px-6 py-3 rounded-md text-white font-medium ${
-                component.props?.variant === 'primary'
-                  ? 'bg-blue-600 hover:bg-blue-700'
-                  : 'bg-gray-600 hover:bg-gray-700'
-              }`}
-            >
-              {component.content}
-            </button>
-          </div>
-        );
-      case 'form':
-        return (
-          <div className="mb-4 p-6 bg-gray-50 rounded-lg">
-            <form className="space-y-4">
-              {component.props?.formFields?.map((field, index) => (
-                <div key={index}>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    {field.label}
-                  </label>
-                  {field.type === 'textarea' ? (
-                    <textarea
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                      placeholder={field.placeholder}
-                      required={field.required}
-                    />
-                  ) : (
-                    <input
-                      type={field.type}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                      placeholder={field.placeholder}
-                      required={field.required}
-                    />
-                  )}
-                </div>
-              ))}
-              <button
-                type="submit"
-                className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-              >
-                Submit
-              </button>
-            </form>
-          </div>
-        );
-      case 'cta':
-        return (
-          <div className="mb-4 p-8 bg-blue-600 text-white rounded-lg text-center">
-            <h3 className="text-2xl font-bold mb-2">{component.content}</h3>
-            <button className="mt-4 px-6 py-2 bg-white text-blue-600 rounded-md hover:bg-gray-100">
-              Get Started
-            </button>
-          </div>
-        );
-      case 'features':
-        return (
-          <div className="mb-4 grid grid-cols-1 md:grid-cols-3 gap-6">
-            {component.props?.features?.map((feature, index) => (
-              <div key={index} className="p-6 bg-white rounded-lg shadow">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-8 w-8 text-blue-600 mb-4"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d={feature.icon}
-                  />
-                </svg>
-                <h3 className="text-xl font-semibold mb-2">{feature.title}</h3>
-                <p className="text-gray-600">{feature.description}</p>
-              </div>
-            ))}
-          </div>
-        );
-      case 'testimonial':
-        return (
-          <div className="mb-4 grid grid-cols-1 md:grid-cols-3 gap-6">
-            {component.props?.testimonials?.map((testimonial, index) => (
-              <div key={index} className="p-6 bg-white rounded-lg shadow">
-                <img
-                  src={testimonial.avatar}
-                  alt={testimonial.name}
-                  className="w-16 h-16 rounded-full mx-auto mb-4"
-                />
-                <p className="text-gray-600 mb-2">{testimonial.content}</p>
-                <div className="text-center">
-                  <p className="font-semibold">{testimonial.name}</p>
-                  <p className="text-sm text-gray-500">{testimonial.role}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        );
-      case 'pricing':
-        return (
-          <div className="mb-4 grid grid-cols-1 md:grid-cols-3 gap-6">
-            {component.props?.pricingPlans?.map((plan, index) => (
-              <div
-                key={index}
-                className={`p-6 rounded-lg ${
-                  plan.popular
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-white text-gray-900'
-                }`}
-              >
-                <h3 className="text-xl font-semibold mb-2">{plan.name}</h3>
-                <p className="text-3xl font-bold mb-4">{plan.price}</p>
-                <ul className="space-y-2 mb-6">
-                  {plan.features.map((feature, i) => (
-                    <li key={i} className="flex items-center">
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        className="h-5 w-5 mr-2"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M5 13l4 4L19 7"
-                        />
-                      </svg>
-                      {feature}
-                    </li>
-                  ))}
-                </ul>
-                <button
-                  className={`w-full px-4 py-2 rounded-md ${
-                    plan.popular
-                      ? 'bg-white text-blue-600 hover:bg-gray-100'
-                      : 'bg-blue-600 text-white hover:bg-blue-700'
-                  }`}
-                >
-                  {plan.ctaText}
-                </button>
-              </div>
-            ))}
-          </div>
-        );
-      case 'spacer':
-        return (
-          <div
-            className="w-full"
-            style={{ height: `${component.props?.height || 40}px` }}
-          />
-        );
-      default:
-        return null;
+    if (params.slug) {
+      fetchPage();
     }
-  };
+  }, [params.slug]);
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading...</p>
+        </div>
       </div>
     );
   }
 
   if (!page) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Halaman Tidak Ditemukan</h1>
-          <p className="text-gray-600">Halaman yang Anda cari tidak ada.</p>
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">Page Not Found</h1>
+          <p className="text-gray-600">The page you're looking for doesn't exist.</p>
         </div>
       </div>
     );
   }
 
+  const getBackgroundStyle = () => {
+    switch (page.layout.backgroundType) {
+      case 'color':
+        return {
+          backgroundColor: page.layout.backgroundColor
+        };
+      case 'image':
+        return {
+          backgroundImage: `url(${page.layout.backgroundImage})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundRepeat: 'no-repeat'
+        };
+      case 'gradient':
+        return {
+          background: `linear-gradient(${page.layout.gradientDirection}, ${
+            page.layout.gradientStartColor
+          }, ${page.layout.gradientEndColor})`
+        };
+      default:
+        return {};
+    }
+  };
+
+  const getWidthClass = () => {
+    switch (page.layout.width) {
+      case 'narrow':
+        return 'max-w-3xl';
+      case 'wide':
+        return 'max-w-6xl';
+      case 'full':
+        return 'w-full';
+      default:
+        return 'max-w-4xl';
+    }
+  };
+
+  const getSpacingClass = () => {
+    switch (page.layout.spacing) {
+      case 'compact':
+        return 'py-4';
+      case 'normal':
+        return 'py-8';
+      case 'spacious':
+        return 'py-12';
+      default:
+        return 'py-8';
+    }
+  };
+
+  console.log('Rendering page with content:', page.content);
+
   return (
-    <div className="min-h-screen bg-white">
-      <div className="max-w-4xl mx-auto px-4 py-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-4">{page.title}</h1>
-        <p className="text-lg text-gray-600 mb-8">{page.description}</p>
-        <div className="space-y-6">
-          {page.content.map((component) => renderComponent(component))}
+    <div 
+      className="min-h-screen flex flex-col"
+      style={{
+        ...getBackgroundStyle(),
+        fontFamily: page.theme.typography.bodyFont,
+        color: page.theme.colors.text,
+        backgroundColor: page.layout.backgroundType === 'color' ? page.layout.backgroundColor : page.theme.colors.background,
+        paddingTop: 0
+      }}
+    >
+      {/* Main Content */}
+      <main className="flex-grow">
+        <div className={`mx-auto ${getWidthClass()}`}>
+          {page.content && page.content.length > 0 ? (
+            page.content.map((component, index) => {
+              // Skip header and footer if they are not enabled in layout settings
+              if (component.type === 'header' && !page.layout.showHeader) return null;
+              if (component.type === 'footer' && !page.layout.showFooter) return null;
+
+              console.log('Rendering component:', component);
+              return (
+                <div 
+                  key={index} 
+                  className="w-full"
+                  style={{
+                    marginBottom: page.theme.spacing.section
+                  }}
+                >
+                  <div className="w-full">
+                    <ComponentRenderer
+                      component={component}
+                      onSelect={() => {}}
+                      onDelete={() => {}}
+                      isEditor={false}
+                    />
+                  </div>
+                </div>
+              );
+            })
+          ) : (
+            <div className="text-center py-8">
+              <p className="text-gray-500">No components found in this page</p>
+              <pre className="mt-4 text-left bg-gray-100 p-4 rounded">
+                {JSON.stringify(page, null, 2)}
+              </pre>
+            </div>
+          )}
         </div>
-      </div>
+      </main>
     </div>
   );
 } 

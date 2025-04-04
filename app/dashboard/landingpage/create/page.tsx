@@ -10,6 +10,7 @@ import { Textarea } from '@/app/components/ui/textarea';
 import { toast } from 'sonner';
 import { templateService } from '@/app/lib/templates';
 import { landingPageService } from '@/app/lib/landingpage';
+import { themeConfigs } from '@/app/lib/themes';
 
 function CreateLandingPageForm() {
   const router = useRouter();
@@ -58,12 +59,26 @@ function CreateLandingPageForm() {
           slug,
           userId: user.uid,
           content: [],
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          isActive: true,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
           status: 'draft',
-          views: 0,
-          conversions: 0
+          theme: 'modern',
+          themeConfig: themeConfigs['modern'],
+          layout: {
+            type: 'full',
+            width: 'medium',
+            spacing: 'comfortable',
+            sidebarPosition: 'left',
+            showSidebar: false,
+            showHeader: false,
+            showFooter: true,
+            backgroundType: 'none',
+            backgroundColor: '#ffffff',
+            backgroundImage: '',
+            patternType: 'dots',
+            patternColor: '#000000',
+            patternOpacity: 0.1
+          }
         });
       }
 

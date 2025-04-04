@@ -25,12 +25,15 @@ interface LandingPage {
   };
 }
 
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: Request) {
   try {
-    const { searchParams } = new URL(request.url);
-    const slug = searchParams.get('slug');
-    const userId = searchParams.get('userId');
-    const listAll = searchParams.get('listAll') === 'true';
+    const url = new URL(request.url);
+    const slug = url.searchParams.get('slug');
+    const userId = url.searchParams.get('userId');
+    const listAll = url.searchParams.get('listAll') === 'true';
 
     console.log('Request parameters:', { slug, userId, listAll });
 

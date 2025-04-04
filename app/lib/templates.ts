@@ -183,7 +183,22 @@ export const templateService = {
         updatedAt: new Date(),
         slug: slug || title.toLowerCase().replace(/\s+/g, '-'),
         views: 0,
-        conversions: 0
+        conversions: 0,
+        layout: {
+          type: 'full',
+          width: 'medium',
+          spacing: 'comfortable',
+          sidebarPosition: 'left',
+          showSidebar: false,
+          showHeader: false,
+          showFooter: true,
+          backgroundType: 'none',
+          backgroundColor: '#ffffff',
+          backgroundImage: '',
+          patternType: 'dots',
+          patternColor: '#000000',
+          patternOpacity: 0.1
+        }
       });
 
       return landingPageRef.id;

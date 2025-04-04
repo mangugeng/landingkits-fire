@@ -1,30 +1,16 @@
 import { db } from './firebase';
 import { collection, addDoc, getDocs, query, where, orderBy, doc, getDoc, updateDoc, deleteDoc } from 'firebase/firestore';
-import { ComponentData } from '@/app/types/editor';
-
-export interface LandingPage {
-  id?: string;
-  title: string;
-  description: string;
-  slug: string;
-  userId: string;
-  content: ComponentData[];
-  createdAt: Date;
-  updatedAt: Date;
-  isActive: boolean;
-  status: 'draft' | 'published';
-  views: number;
-  conversions: number;
-}
+import { ComponentData, LandingPage, LayoutSettings } from '@/app/types/editor';
 
 export const landingPageService = {
   async createLandingPage(data: Omit<LandingPage, 'id'>): Promise<string> {
-    const docRef = await addDoc(collection(db, 'landing_pages'), {
+    const docRef = await addDoc(collection(db, 'landingPages'), {
       ...data,
-      content: data.content || [],
-      views: data.views || 0,
-      conversions: data.conversions || 0,
-      status: data.status || 'draft'
+      analytics: {
+        views: 0,
+        conversions: 0,
+        visitors: 0
+      }
     });
     return docRef.id;
   },

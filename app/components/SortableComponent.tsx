@@ -16,34 +16,40 @@ interface ComponentRendererProps {
 
 const componentRenderers: Record<ComponentData['type'], React.FC<ComponentRendererProps>> = {
   heading: ({ content, props }) => (
-    <h2 className="text-2xl font-bold">{content}</h2>
+    <h2 className="heading text-2xl font-bold">{content}</h2>
   ),
   paragraph: ({ content }) => (
-    <p className="text-gray-600">{content}</p>
+    <p className="paragraph">{content}</p>
   ),
   image: ({ content, props }) => (
-    <img src={content} alt={props?.alt || ''} className="w-full h-auto" />
+    <img src={content} alt={props?.alt || ''} className="image w-full h-auto" />
   ),
-  button: ({ content }) => (
-    <Button>{content}</Button>
+  button: ({ content, props }) => (
+    <button className={`button ${
+      props?.style === 'primary' ? 'button-primary' :
+      props?.style === 'secondary' ? 'button-secondary' :
+      'button-accent'
+    }`}>
+      {content}
+    </button>
   ),
   form: ({ content }) => (
-    <div className="p-4 border rounded">{content}</div>
+    <div className="form p-4">{content}</div>
   ),
   pricing: ({ content }) => (
-    <div className="p-4 border rounded">{content}</div>
+    <div className="pricing p-4">{content}</div>
   ),
   testimonial: ({ content }) => (
-    <div className="p-4 border rounded">{content}</div>
+    <div className="testimonial p-4">{content}</div>
   ),
   features: ({ content }) => (
-    <div className="p-4 border rounded">{content}</div>
+    <div className="features p-4">{content}</div>
   ),
   hero: ({ content }) => (
-    <div className="p-4 border rounded">{content}</div>
+    <div className="hero p-4">{content}</div>
   ),
   cta: ({ content }) => (
-    <div className="p-4 border rounded">{content}</div>
+    <div className="cta p-4">{content}</div>
   ),
   spacer: ({ content, props }) => (
     <div style={{ height: props?.height || 20 }} />

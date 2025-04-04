@@ -1,5 +1,5 @@
-const { db } = require('./lib/firebase.singleton');
-const { collection, getDocs, query, where } = require('firebase/firestore');
+import { db } from './lib/firebase';
+import { collection, getDocs, query, where } from 'firebase/firestore';
 
 async function checkComponents() {
   try {

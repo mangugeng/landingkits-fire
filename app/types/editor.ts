@@ -1,4 +1,18 @@
-export type ComponentType = 'heading' | 'paragraph' | 'image' | 'button' | 'form' | 'cta' | 'features' | 'testimonial' | 'pricing' | 'spacer' | 'hero';
+export type ComponentType = 
+  | 'header'
+  | 'hero'
+  | 'heading'
+  | 'paragraph'
+  | 'image'
+  | 'button'
+  | 'form'
+  | 'pricing'
+  | 'testimonial'
+  | 'features'
+  | 'cta'
+  | 'spacer'
+  | 'footer'
+  | 'anchor';
 
 export interface FormFieldOption {
   label: string;
@@ -16,7 +30,7 @@ export interface FormField {
 export interface ComponentData {
   id: string;
   type: ComponentType;
-  content: string;
+  content?: string;
   props?: {
     text?: string;
     title?: string;
@@ -39,6 +53,45 @@ export interface ComponentData {
     textColor?: string;
     imageUrl?: string;
     imageAlt?: string;
+    // Background properties
+    backgroundType?: 'none' | 'color' | 'image' | 'gradient';
+    backgroundImage?: string;
+    gradientStartColor?: string;
+    gradientEndColor?: string;
+    gradientDirection?: 'to right' | 'to bottom' | 'to bottom right';
+    // Header properties
+    logo?: {
+      src: string;
+      alt: string;
+      width?: number;
+      height?: number;
+    };
+    navigation?: Array<{
+      label: string;
+      href: string;
+      isExternal?: boolean;
+      textColor?: string;
+    }>;
+    ctaButton?: {
+      text: string;
+      href: string;
+      variant: 'primary' | 'secondary' | 'outline';
+    };
+    isSticky?: boolean;
+    // Footer properties
+    footerLinks?: Array<{
+      title: string;
+      links: Array<{
+        label: string;
+        href: string;
+        isExternal?: boolean;
+      }>;
+    }>;
+    socialLinks?: Array<{
+      platform: 'facebook' | 'twitter' | 'instagram' | 'linkedin' | 'youtube';
+      url: string;
+    }>;
+    copyright?: string;
     formFields?: Array<{
       type: 'email' | 'text' | 'textarea';
       label: string;
@@ -66,6 +119,34 @@ export interface ComponentData {
       ctaLink?: string;
       popular?: boolean;
     }>;
+    // Anchor props
+    anchorId?: string;
+  };
+}
+
+export type ThemeType = 'modern' | 'business' | 'creative' | 'minimal' | 'ecommerce' | 'custom';
+
+export interface ThemeConfig {
+  colors: {
+    primary: string;
+    secondary: string;
+    accent: string;
+    background: string;
+    text: string;
+  };
+  typography: {
+    headingFont: string;
+    bodyFont: string;
+  };
+  spacing: {
+    section: string;
+    component: string;
+  };
+  borderRadius: string;
+  shadows: {
+    small: string;
+    medium: string;
+    large: string;
   };
 }
 
@@ -81,6 +162,9 @@ export interface LandingPage {
   publishedAt?: string;
   slug: string;
   customDomain?: string;
+  theme: ThemeType;
+  themeConfig: ThemeConfig;
+  layout?: LayoutSettings;
   analytics?: {
     views: number;
     conversions: number;
@@ -121,4 +205,25 @@ export interface ImageLibraryCategory {
   updatedAt: Date;
   createdBy: string;
   isActive: boolean;
+}
+
+export interface LayoutSettings {
+  type: 'full' | 'boxed' | 'narrow';
+  width: string;
+  maxWidth: string;
+  padding: string;
+  spacing: 'compact' | 'comfortable' | 'spacious';
+  sidebarPosition: 'left' | 'right';
+  showSidebar: boolean;
+  showHeader: boolean;
+  showFooter: boolean;
+  backgroundType: 'none' | 'color' | 'image' | 'gradient';
+  backgroundColor: string;
+  backgroundImage: string;
+  patternType: 'none' | 'dots' | 'lines' | 'grid';
+  patternColor: string;
+  patternOpacity: number;
+  gradientDirection: string;
+  gradientStartColor: string;
+  gradientEndColor: string;
 } 

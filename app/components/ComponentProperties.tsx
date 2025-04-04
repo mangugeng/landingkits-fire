@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { ComponentData, ImageLibraryItem } from '../types/editor';
 import { storage } from '../lib/firebase.singleton';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
@@ -30,9 +30,43 @@ export default function ComponentProperties({
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [showImageLibrary, setShowImageLibrary] = useState(false);
+  const [localProps, setLocalProps] = useState(component.props || {});
+
+  useEffect(() => {
+    setLocalProps(component.props || {});
+  }, [component]);
 
   const handleChange = (field: string, value: any) => {
     console.log('Handling change:', field, value);
+    
+    // Update local state first
+    const updatedLocalProps = {
+      ...localProps,
+      [field]: value
+    };
+
+    // Jika mengubah backgroundType, atur nilai default untuk properti terkait
+    if (field === 'backgroundType') {
+      switch (value) {
+        case 'color':
+          updatedLocalProps.backgroundColor = updatedLocalProps.backgroundColor || '#ffffff';
+          break;
+        case 'image':
+          updatedLocalProps.backgroundImage = updatedLocalProps.backgroundImage || '';
+          updatedLocalProps.backgroundSize = updatedLocalProps.backgroundSize || 'cover';
+          updatedLocalProps.backgroundPosition = updatedLocalProps.backgroundPosition || 'center';
+          break;
+        case 'gradient':
+          updatedLocalProps.gradientDirection = updatedLocalProps.gradientDirection || 'to right';
+          updatedLocalProps.gradientStartColor = updatedLocalProps.gradientStartColor || '#3c87d3';
+          updatedLocalProps.gradientEndColor = updatedLocalProps.gradientEndColor || '#23853c';
+          break;
+      }
+    }
+
+    setLocalProps(updatedLocalProps);
+    
+    // Pastikan value tidak undefined
     if (value === undefined) {
       console.warn(`Mencoba mengatur ${field} dengan nilai undefined, menggunakan nilai default`);
       switch (field) {
@@ -54,18 +88,37 @@ export default function ComponentProperties({
         case 'imageSource':
           value = 'url';
           break;
+        case 'backgroundType':
+          value = 'none';
+          break;
+        case 'backgroundColor':
+          value = '#ffffff';
+          break;
+        case 'gradientDirection':
+          value = 'to right';
+          break;
+        case 'gradientStartColor':
+          value = '#3c87d3';
+          break;
+        case 'gradientEndColor':
+          value = '#23853c';
+          break;
         default:
           value = null;
       }
     }
 
+    // Buat salinan komponen yang diperbarui
     const updatedComponent: ComponentData = {
       ...component,
-      props: {
-        ...component.props,
-        [field]: value
-      }
+      props: updatedLocalProps
     };
+
+    // Jika field adalah 'text', update juga content
+    if (field === 'text') {
+      updatedComponent.content = value;
+    }
+
     console.log('Updated component:', updatedComponent);
     onUpdate(updatedComponent);
   };
@@ -73,10 +126,21 @@ export default function ComponentProperties({
   const handleContentChange = (value: string) => {
     console.log('Handling content change:', value);
     const content = value === undefined ? '' : value;
+    
+    // Update local state
+    const updatedLocalProps = {
+      ...localProps,
+      text: content
+    };
+    setLocalProps(updatedLocalProps);
+    
+    // Buat salinan komponen yang diperbarui
     const updatedComponent: ComponentData = {
       ...component,
-      content
+      content,
+      props: updatedLocalProps
     };
+    
     console.log('Updated component with content:', updatedComponent);
     onUpdate(updatedComponent);
   };
@@ -467,7 +531,7 @@ export default function ComponentProperties({
     <div className="p-4 space-y-4">
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-medium text-gray-900">
-          {component.type.charAt(0).toUpperCase() + component.type.slice(1)} Properties
+          {typeof component.type === 'string' ? component.type.charAt(0).toUpperCase() + component.type.slice(1) : 'Komponen'} Properties
         </h3>
         <div className="flex space-x-2">
           <Button
@@ -487,15 +551,15 @@ export default function ComponentProperties({
               <label className="block text-sm font-medium text-gray-700">Text</label>
               <input
                 type="text"
-                value={component.content || ''}
-                onChange={(e) => handleContentChange(e.target.value)}
+                value={localProps.text || component.content || ''}
+                onChange={(e) => handleChange('text', e.target.value)}
                 className="mt-1 block w-full rounded-md border-2 border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 px-4 py-2 bg-white hover:border-gray-400"
               />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700">Level</label>
-                <select
-                value={component.props?.level || 'h1'}
+              <select
+                value={localProps.level || 'h1'}
                 onChange={(e) => handleChange('level', e.target.value)}
                 className="mt-1 block w-full rounded-md border-2 border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 px-4 py-2 bg-white hover:border-gray-400"
               >
@@ -505,21 +569,21 @@ export default function ComponentProperties({
                 <option value="h4">H4</option>
                 <option value="h5">H5</option>
                 <option value="h6">H6</option>
-                </select>
+              </select>
             </div>
           </>
         )}
 
         {component.type === 'paragraph' && (
-            <div>
+          <div>
             <label className="block text-sm font-medium text-gray-700">Text</label>
-              <textarea
-              value={component.content || ''}
-              onChange={(e) => handleContentChange(e.target.value)}
-                rows={4}
+            <textarea
+              value={localProps.text || component.content || ''}
+              onChange={(e) => handleChange('text', e.target.value)}
+              rows={4}
               className="mt-1 block w-full rounded-md border-2 border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 px-4 py-2 bg-white hover:border-gray-400"
-              />
-            </div>
+            />
+          </div>
         )}
 
         {component.type === 'image' && (
@@ -649,7 +713,7 @@ export default function ComponentProperties({
                 >
                   Pilih dari Device
                 </button>
-            </div>
+              </div>
             )}
 
             {component.props?.imageSource === 'library' && (
@@ -676,7 +740,7 @@ export default function ComponentProperties({
                     />
                   </button>
                 ))}
-          </div>
+              </div>
             )}
 
             <div>
@@ -718,7 +782,7 @@ export default function ComponentProperties({
               <label className="block text-sm font-medium text-gray-700">Text</label>
               <input
                 type="text"
-                value={component.props?.text || ''}
+                value={localProps.text || component.content || ''}
                 onChange={(e) => handleChange('text', e.target.value)}
                 className="mt-1 block w-full rounded-md border-2 border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 px-4 py-2 bg-white hover:border-gray-400"
               />
@@ -727,35 +791,553 @@ export default function ComponentProperties({
               <label className="block text-sm font-medium text-gray-700">Link</label>
               <input
                 type="text"
-                value={component.props?.link || ''}
+                value={localProps.link || '#'}
                 onChange={(e) => handleChange('link', e.target.value)}
                 className="mt-1 block w-full rounded-md border-2 border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 px-4 py-2 bg-white hover:border-gray-400"
               />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700">Style</label>
-                <select
-                value={component.props?.style || 'primary'}
+              <select
+                value={localProps.style || 'primary'}
                 onChange={(e) => handleChange('style', e.target.value)}
                 className="mt-1 block w-full rounded-md border-2 border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 px-4 py-2 bg-white hover:border-gray-400"
-                >
-                  <option value="primary">Primary</option>
-                  <option value="secondary">Secondary</option>
-                  <option value="outline">Outline</option>
-                </select>
+              >
+                <option value="primary">Primary</option>
+                <option value="secondary">Secondary</option>
+                <option value="outline">Outline</option>
+              </select>
             </div>
           </>
         )}
 
         {component.type === 'spacer' && (
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Height (px)</label>
-            <input
-              type="number"
-              value={component.props?.height || 40}
-              onChange={(e) => handleChange('height', parseInt(e.target.value))}
-              className="mt-1 block w-full rounded-md border-2 border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 px-4 py-2 bg-white hover:border-gray-400"
-            />
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Tinggi (px)</label>
+              <input
+                type="number"
+                value={component.props?.height || 20}
+                onChange={(e) => onUpdate(component.id, { ...component.props, height: parseInt(e.target.value) })}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+              />
+            </div>
+          </div>
+        )}
+
+        {component.type === 'cta' && (
+          <>
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Text</label>
+              <input
+                type="text"
+                value={localProps.text || component.content || ''}
+                onChange={(e) => handleChange('text', e.target.value)}
+                className="mt-1 block w-full rounded-md border-2 border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 px-4 py-2 bg-white hover:border-gray-400"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700">CTA Type</label>
+              <select
+                value={localProps.ctaType || 'register'}
+                onChange={(e) => handleChange('ctaType', e.target.value)}
+                className="mt-1 block w-full rounded-md border-2 border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 px-4 py-2 bg-white hover:border-gray-400"
+              >
+                <option value="register">Register</option>
+                <option value="purchase">Purchase</option>
+                <option value="download">Download</option>
+                <option value="contact">Contact</option>
+                <option value="subscribe">Subscribe</option>
+                <option value="share">Share</option>
+              </select>
+            </div>
+          </>
+        )}
+
+        {component.type === 'footer' && (
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold">Footer Properties</h3>
+            
+            {/* Footer Links */}
+            <div className="space-y-2">
+              <h4 className="font-medium">Footer Links</h4>
+              {localProps.footerLinks?.map((section, sectionIndex) => (
+                <div key={sectionIndex} className="space-y-2 p-4 border rounded">
+                  <input
+                    type="text"
+                    value={section.title}
+                    onChange={(e) => {
+                      const newLinks = [...(localProps.footerLinks || [])];
+                      newLinks[sectionIndex] = { ...newLinks[sectionIndex], title: e.target.value };
+                      handleChange('footerLinks', newLinks);
+                    }}
+                    className="w-full p-2 border rounded"
+                    placeholder="Section Title"
+                  />
+                  {section.links.map((link, linkIndex) => (
+                    <div key={linkIndex} className="flex gap-2">
+                      <input
+                        type="text"
+                        value={link.label}
+                        onChange={(e) => {
+                          const newLinks = [...(localProps.footerLinks || [])];
+                          newLinks[sectionIndex].links[linkIndex] = { ...newLinks[sectionIndex].links[linkIndex], label: e.target.value };
+                          handleChange('footerLinks', newLinks);
+                        }}
+                        className="flex-1 p-2 border rounded"
+                        placeholder="Link Label"
+                      />
+                      <input
+                        type="text"
+                        value={link.href}
+                        onChange={(e) => {
+                          const newLinks = [...(localProps.footerLinks || [])];
+                          newLinks[sectionIndex].links[linkIndex] = { ...newLinks[sectionIndex].links[linkIndex], href: e.target.value };
+                          handleChange('footerLinks', newLinks);
+                        }}
+                        className="flex-1 p-2 border rounded"
+                        placeholder="https://example.com"
+                      />
+                      <button
+                        onClick={() => {
+                          const newLinks = [...(localProps.footerLinks || [])];
+                          newLinks[sectionIndex].links = newLinks[sectionIndex].links.filter((_, i) => i !== linkIndex);
+                          handleChange('footerLinks', newLinks);
+                        }}
+                        className="p-2 text-red-500 hover:text-red-700"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ))}
+                  <button
+                    onClick={() => {
+                      const newLinks = [...(localProps.footerLinks || [])];
+                      newLinks[sectionIndex].links = [...newLinks[sectionIndex].links, { label: '', href: '' }];
+                      handleChange('footerLinks', newLinks);
+                    }}
+                    className="w-full p-2 border border-dashed rounded hover:bg-gray-50"
+                  >
+                    Add Link
+                  </button>
+                  <button
+                    onClick={() => {
+                      const newLinks = localProps.footerLinks?.filter((_, i) => i !== sectionIndex);
+                      handleChange('footerLinks', newLinks);
+                    }}
+                    className="w-full p-2 text-red-500 hover:text-red-700 border border-red-200 rounded"
+                  >
+                    Remove Section
+                  </button>
+                </div>
+              ))}
+              <button
+                onClick={() => {
+                  const newLinks = [...(localProps.footerLinks || []), { title: '', links: [] }];
+                  handleChange('footerLinks', newLinks);
+                }}
+                className="w-full p-2 border border-dashed rounded hover:bg-gray-50"
+              >
+                Add Section
+              </button>
+            </div>
+
+            {/* Social Links */}
+            <div className="space-y-2">
+              <h4 className="font-medium">Social Links</h4>
+              {localProps.socialLinks?.map((social, index) => (
+                <div key={index} className="flex gap-2">
+                  <select
+                    value={social.platform}
+                    onChange={(e) => {
+                      const newSocial = [...(localProps.socialLinks || [])];
+                      newSocial[index] = { ...newSocial[index], platform: e.target.value as "facebook" | "twitter" | "instagram" | "linkedin" | "youtube" };
+                      handleChange('socialLinks', newSocial);
+                    }}
+                    className="flex-1 p-2 border rounded"
+                  >
+                    <option value="facebook">Facebook</option>
+                    <option value="twitter">Twitter</option>
+                    <option value="instagram">Instagram</option>
+                    <option value="linkedin">LinkedIn</option>
+                    <option value="youtube">YouTube</option>
+                  </select>
+                  <input
+                    type="text"
+                    value={social.url}
+                    onChange={(e) => {
+                      const newSocial = [...(localProps.socialLinks || [])];
+                      newSocial[index] = { ...newSocial[index], url: e.target.value };
+                      handleChange('socialLinks', newSocial);
+                    }}
+                    className="flex-1 p-2 border rounded"
+                    placeholder="https://example.com"
+                  />
+                  <button
+                    onClick={() => {
+                      const newSocial = localProps.socialLinks?.filter((_, i) => i !== index);
+                      handleChange('socialLinks', newSocial);
+                    }}
+                    className="p-2 text-red-500 hover:text-red-700"
+                  >
+                    Remove
+                  </button>
+                </div>
+              ))}
+              <button
+                onClick={() => {
+                  const newSocial = [...(localProps.socialLinks || []), { platform: 'facebook', url: '' }];
+                  handleChange('socialLinks', newSocial);
+                }}
+                className="w-full p-2 border border-dashed rounded hover:bg-gray-50"
+              >
+                Add Social Link
+              </button>
+            </div>
+
+            {/* Copyright Text */}
+            <div className="space-y-2">
+              <h4 className="font-medium">Copyright Text</h4>
+              <input
+                type="text"
+                value={localProps.copyright || ''}
+                onChange={(e) => handleChange('copyright', e.target.value)}
+                className="w-full p-2 border rounded"
+                placeholder="© 2024 Your Company. All rights reserved."
+              />
+            </div>
+
+            {/* Background Settings */}
+            <div className="space-y-2">
+              <h4 className="font-medium">Background Settings</h4>
+              <div className="space-y-2">
+                <label className="block text-sm">Background Type</label>
+                <select
+                  value={localProps.backgroundType || 'none'}
+                  onChange={(e) => handleChange('backgroundType', e.target.value)}
+                  className="w-full p-2 border rounded"
+                >
+                  <option value="none">None</option>
+                  <option value="color">Color</option>
+                  <option value="image">Image</option>
+                  <option value="gradient">Gradient</option>
+                </select>
+
+                {localProps.backgroundType === 'color' && (
+                  <div>
+                    <label className="block text-sm">Background Color</label>
+                    <input
+                      type="color"
+                      value={localProps.backgroundColor || '#f9fafb'}
+                      onChange={(e) => handleChange('backgroundColor', e.target.value)}
+                      className="w-full p-1 border rounded"
+                    />
+                  </div>
+                )}
+
+                {localProps.backgroundType === 'image' && (
+                  <div>
+                    <label className="block text-sm">Background Image URL</label>
+                    <input
+                      type="text"
+                      value={localProps.backgroundImage || ''}
+                      onChange={(e) => handleChange('backgroundImage', e.target.value)}
+                      className="w-full p-2 border rounded"
+                      placeholder="https://example.com/image.jpg"
+                    />
+                  </div>
+                )}
+
+                {localProps.backgroundType === 'gradient' && (
+                  <div className="space-y-2">
+                    <div>
+                      <label className="block text-sm">Gradient Start Color</label>
+                      <input
+                        type="color"
+                        value={localProps.gradientStartColor || '#f9fafb'}
+                        onChange={(e) => handleChange('gradientStartColor', e.target.value)}
+                        className="w-full p-1 border rounded"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm">Gradient End Color</label>
+                      <input
+                        type="color"
+                        value={localProps.gradientEndColor || '#f3f4f6'}
+                        onChange={(e) => handleChange('gradientEndColor', e.target.value)}
+                        className="w-full p-1 border rounded"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm">Gradient Direction</label>
+                      <select
+                        value={localProps.gradientDirection || 'to right'}
+                        onChange={(e) => handleChange('gradientDirection', e.target.value)}
+                        className="w-full p-2 border rounded"
+                      >
+                        <option value="to right">Horizontal</option>
+                        <option value="to bottom">Vertical</option>
+                        <option value="to bottom right">Diagonal</option>
+                      </select>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {component.type === 'header' && (
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold">Header Properties</h3>
+            
+            {/* Logo Section */}
+            <div className="space-y-2">
+              <h4 className="font-medium">Logo</h4>
+              <div className="space-y-2">
+                <label className="block text-sm">Logo URL</label>
+                <input
+                  type="text"
+                  value={localProps.logo?.src || ''}
+                  onChange={(e) => handleChange('logo', { ...localProps.logo, src: e.target.value })}
+                  className="w-full p-2 border rounded"
+                  placeholder="https://example.com/logo.png"
+                />
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-sm">Width</label>
+                    <input
+                      type="number"
+                      value={localProps.logo?.width || 200}
+                      onChange={(e) => handleChange('logo', { ...localProps.logo, width: parseInt(e.target.value) })}
+                      className="w-full p-2 border rounded"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm">Height</label>
+                    <input
+                      type="number"
+                      value={localProps.logo?.height || 50}
+                      onChange={(e) => handleChange('logo', { ...localProps.logo, height: parseInt(e.target.value) })}
+                      className="w-full p-2 border rounded"
+                    />
+                  </div>
+                </div>
+                <label className="block text-sm">Alt Text</label>
+                <input
+                  type="text"
+                  value={localProps.logo?.alt || ''}
+                  onChange={(e) => handleChange('logo', { ...localProps.logo, alt: e.target.value })}
+                  className="w-full p-2 border rounded"
+                  placeholder="Company Logo"
+                />
+              </div>
+            </div>
+
+            {/* Navigation Links */}
+            <div className="space-y-2">
+              <h4 className="font-medium">Navigation Links</h4>
+              {localProps.navigation?.map((item, index) => (
+                <div key={index} className="flex flex-col gap-2 p-4 border rounded">
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={item.label}
+                      onChange={(e) => {
+                        const newNav = [...(localProps.navigation || [])];
+                        newNav[index] = { ...newNav[index], label: e.target.value };
+                        handleChange('navigation', newNav);
+                      }}
+                      className="flex-1 p-2 border rounded"
+                      placeholder="Link Label"
+                    />
+                    <input
+                      type="text"
+                      value={item.href}
+                      onChange={(e) => {
+                        const newNav = [...(localProps.navigation || [])];
+                        newNav[index] = { ...newNav[index], href: e.target.value };
+                        handleChange('navigation', newNav);
+                      }}
+                      className="flex-1 p-2 border rounded"
+                      placeholder="https://example.com"
+                    />
+                    <button
+                      onClick={() => {
+                        const newNav = localProps.navigation?.filter((_, i) => i !== index);
+                        handleChange('navigation', newNav);
+                      }}
+                      className="p-2 text-red-500 hover:text-red-700"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <label className="text-sm">Text Color:</label>
+                    <input
+                      type="color"
+                      value={item.textColor || '#4B5563'}
+                      onChange={(e) => {
+                        const newNav = [...(localProps.navigation || [])];
+                        newNav[index] = { ...newNav[index], textColor: e.target.value };
+                        handleChange('navigation', newNav);
+                      }}
+                      className="w-8 h-8 p-1 border rounded cursor-pointer"
+                    />
+                    <input
+                      type="text"
+                      value={item.textColor || '#4B5563'}
+                      onChange={(e) => {
+                        const newNav = [...(localProps.navigation || [])];
+                        newNav[index] = { ...newNav[index], textColor: e.target.value };
+                        handleChange('navigation', newNav);
+                      }}
+                      className="flex-1 p-2 border rounded"
+                      placeholder="#4B5563"
+                    />
+                  </div>
+                </div>
+              ))}
+              <button
+                onClick={() => {
+                  const newNav = [...(localProps.navigation || []), { label: '', href: '', textColor: '#4B5563' }];
+                  handleChange('navigation', newNav);
+                }}
+                className="w-full p-2 border border-dashed rounded hover:bg-gray-50"
+              >
+                Add Link
+              </button>
+            </div>
+
+            {/* CTA Button */}
+            <div className="space-y-2">
+              <h4 className="font-medium">CTA Button</h4>
+              <div className="space-y-2">
+                <input
+                  type="text"
+                  value={localProps.ctaButton?.text || ''}
+                  onChange={(e) => handleChange('ctaButton', { ...localProps.ctaButton, text: e.target.value })}
+                  className="w-full p-2 border rounded"
+                  placeholder="Button Text"
+                />
+                <input
+                  type="text"
+                  value={localProps.ctaButton?.href || ''}
+                  onChange={(e) => handleChange('ctaButton', { ...localProps.ctaButton, href: e.target.value })}
+                  className="w-full p-2 border rounded"
+                  placeholder="https://example.com"
+                />
+              </div>
+            </div>
+
+            {/* Background Settings */}
+            <div className="space-y-2">
+              <h4 className="font-medium">Background Settings</h4>
+              <div className="space-y-2">
+                <label className="block text-sm">Background Type</label>
+                <select
+                  value={localProps.backgroundType || 'none'}
+                  onChange={(e) => handleChange('backgroundType', e.target.value)}
+                  className="w-full p-2 border rounded"
+                >
+                  <option value="none">None</option>
+                  <option value="color">Color</option>
+                  <option value="image">Image</option>
+                  <option value="gradient">Gradient</option>
+                </select>
+
+                {localProps.backgroundType === 'color' && (
+                  <div>
+                    <label className="block text-sm">Background Color</label>
+                    <input
+                      type="color"
+                      value={localProps.backgroundColor || '#ffffff'}
+                      onChange={(e) => handleChange('backgroundColor', e.target.value)}
+                      className="w-full p-1 border rounded"
+                    />
+                  </div>
+                )}
+
+                {localProps.backgroundType === 'image' && (
+                  <div>
+                    <label className="block text-sm">Background Image URL</label>
+                    <input
+                      type="text"
+                      value={localProps.backgroundImage || ''}
+                      onChange={(e) => handleChange('backgroundImage', e.target.value)}
+                      className="w-full p-2 border rounded"
+                      placeholder="https://example.com/image.jpg"
+                    />
+                  </div>
+                )}
+
+                {localProps.backgroundType === 'gradient' && (
+                  <div className="space-y-2">
+                    <div>
+                      <label className="block text-sm">Gradient Start Color</label>
+                      <input
+                        type="color"
+                        value={localProps.gradientStartColor || '#f9fafb'}
+                        onChange={(e) => handleChange('gradientStartColor', e.target.value)}
+                        className="w-full p-1 border rounded"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm">Gradient End Color</label>
+                      <input
+                        type="color"
+                        value={localProps.gradientEndColor || '#f3f4f6'}
+                        onChange={(e) => handleChange('gradientEndColor', e.target.value)}
+                        className="w-full p-1 border rounded"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm">Gradient Direction</label>
+                      <select
+                        value={localProps.gradientDirection || 'to right'}
+                        onChange={(e) => handleChange('gradientDirection', e.target.value)}
+                        className="w-full p-2 border rounded"
+                      >
+                        <option value="to right">Horizontal</option>
+                        <option value="to bottom">Vertical</option>
+                        <option value="to bottom right">Diagonal</option>
+                      </select>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Sticky Header Option */}
+            <div className="space-y-2">
+              <label className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  checked={localProps.isSticky || false}
+                  onChange={(e) => handleChange('isSticky', e.target.checked)}
+                  className="rounded"
+                />
+                <span>Enable Sticky Header</span>
+              </label>
+            </div>
+          </div>
+        )}
+
+        {component.type === 'anchor' && (
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700">ID Anchor</label>
+              <input
+                type="text"
+                value={localProps.anchorId || ''}
+                onChange={(e) => handleChange('anchorId', e.target.value)}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                placeholder="contoh: about"
+              />
+              <p className="mt-1 text-sm text-gray-500">
+                ID ini akan digunakan untuk navigasi (contoh: #about)
+              </p>
+            </div>
           </div>
         )}
       </div>
@@ -887,13 +1469,13 @@ export default function ComponentProperties({
               )}
 
               <div className="flex justify-end gap-2 mt-6">
-        <button
+                <button
                   onClick={() => setShowUploadModal(false)}
                   className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors"
-        >
+                >
                   Batal
-        </button>
-      </div>
+                </button>
+              </div>
             </div>
           </div>
         </div>
