@@ -2,7 +2,7 @@
 
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useAuth } from '@/app/context/AuthContext';
+import { useAuth } from '@/app/contexts/AuthContext';
 import { Button } from '@/app/components/ui/button';
 import { Input } from '@/app/components/ui/input';
 import { Label } from '@/app/components/ui/label';
@@ -77,7 +77,12 @@ function CreateLandingPageForm() {
             backgroundImage: '',
             patternType: 'dots',
             patternColor: '#000000',
-            patternOpacity: 0.1
+            patternOpacity: 0.1,
+            maxWidth: '1200px',
+            padding: '2rem',
+            gradientDirection: 'to-r',
+            gradientStartColor: '#ffffff',
+            gradientEndColor: '#ffffff'
           }
         });
       }
