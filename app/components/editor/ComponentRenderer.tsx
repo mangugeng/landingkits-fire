@@ -1,13 +1,14 @@
 'use client';
 
-import { ComponentData } from '@/app/types/editor';
+import { ComponentData, LandingPage } from '@/app/types/editor';
 import { useState } from 'react';
 import { FiEdit2, FiTrash2 } from 'react-icons/fi';
 
 interface ComponentRendererProps {
   component: ComponentData;
-  onSelect: () => void;
-  onDelete: () => void;
+  pageData?: LandingPage;
+  onSelect?: () => void;
+  onDelete?: () => void;
   isEditor?: boolean;
   onMoveUp?: () => void;
   onMoveDown?: () => void;
@@ -15,6 +16,7 @@ interface ComponentRendererProps {
 
 export default function ComponentRenderer({
   component,
+  pageData,
   onSelect,
   onDelete,
   isEditor = false,

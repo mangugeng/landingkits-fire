@@ -226,4 +226,28 @@ export interface LayoutSettings {
   gradientDirection: string;
   gradientStartColor: string;
   gradientEndColor: string;
+}
+
+export interface ThemeSettings {
+  colors: {
+    primary: string;
+    secondary: string;
+    accent: string;
+    background: string;
+    text: string;
+  };
+  typography: {
+    headingFont: string;
+    bodyFont: string;
+  };
+  spacing: {
+    section: string;
+    component: string;
+  };
+  borderRadius: string;
+  shadows: {
+    small: string;
+    medium: string;
+    large: string;
+  };
 } 

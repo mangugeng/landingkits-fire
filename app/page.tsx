@@ -8,7 +8,7 @@ import { db } from '@/app/lib/firebase';
 import { BlogPost } from '@/app/types/blog';
 import { FiArrowRight } from 'react-icons/fi';
 import { toast } from 'react-hot-toast';
-import { ComponentData } from '@/app/types/editor';
+import { ComponentData, LayoutSettings, ThemeConfig, ThemeType } from '@/app/types/editor';
 import PricingSection from '@/app/components/PricingSection';
 import BlogCard from '@/app/components/BlogCard';
 import { getLatestPosts } from '@/app/lib/blog';
@@ -22,232 +22,46 @@ import {
   trackShare, 
   trackCTAClick 
 } from '@/app/components/analytics/Tracking';
+import ComponentRenderer from '@/app/components/editor/ComponentRenderer';
+import LayoutWrapper from '@/app/components/LayoutWrapper';
+import { defaultLayout, defaultTheme } from '@/app/config/defaultSettings';
+
+interface VisitHistory {
+  timestamp: string;
+  type: 'view' | 'conversion';
+  eventType?: string;
+}
 
 interface LandingPage {
   id: string;
+  userId: string;
+  slug: string;
   title: string;
   description: string;
   content: ComponentData[];
-  status: 'draft' | 'published';
-  userId: string;
+  layout: LayoutSettings;
+  theme: {
+    typography: {
+      bodyFont: string;
+      headingFont: string;
+    };
+    colors: {
+      background: string;
+      text: string;
+    };
+    spacing: {
+      section: string;
+    };
+  };
+  analytics: {
+    totalVisits: number;
+    uniqueVisitors: number;
+    lastVisit: string;
+    visitHistory: VisitHistory[];
+  };
   createdAt: string;
   updatedAt: string;
-  slug: string;
-  customDomain?: string;
-  analytics?: {
-    views: number;
-    conversions: number;
-    visitors: number;
-    lastVisit?: Timestamp;
-    visitHistory?: Array<{
-      timestamp: Timestamp;
-      type: 'view' | 'conversion';
-      eventType?: string;
-    }>;
-  };
 }
-
-const renderComponent = (component: ComponentData, pageData: LandingPage) => {
-  switch (component.type) {
-    case 'heading':
-      return (
-        <div className="text-4xl font-bold text-gray-900 mb-4">
-          {component.content}
-        </div>
-      );
-    case 'paragraph':
-      return (
-        <div className="text-lg text-gray-600 mb-4">
-          {component.content}
-        </div>
-      );
-    case 'image':
-      return (
-        <div className="mb-4">
-          <img
-            src={component.content}
-            alt=""
-            className="w-full h-auto rounded-lg"
-          />
-        </div>
-      );
-    case 'button':
-      return (
-        <div className="mb-4">
-          <button
-            className={`px-6 py-3 rounded-md text-white font-medium ${
-              component.props?.variant === 'primary'
-                ? 'bg-blue-600 hover:bg-blue-700'
-                : 'bg-gray-600 hover:bg-gray-700'
-            }`}
-            data-cta={component.props?.ctaType || 'default'}
-            onClick={() => trackCTAClick(pageData.id)}
-          >
-            {component.content}
-          </button>
-        </div>
-      );
-    case 'form':
-      return (
-        <div className="mb-4 p-6 bg-gray-50 rounded-lg">
-          <form 
-            className="space-y-4"
-            data-form-type={component.props?.formType || 'contact'}
-            onSubmit={(e) => {
-              e.preventDefault();
-              const formType = component.props?.formType || 'contact';
-              switch(formType) {
-                case 'register':
-                  trackRegistration(pageData.id);
-                  break;
-                case 'contact':
-                  trackContact(pageData.id);
-                  break;
-                case 'subscribe':
-                  trackSubscribe(pageData.id);
-                  break;
-                default:
-                  console.log('Unknown form type:', formType);
-              }
-            }}
-          >
-            {component.props?.formFields?.map((field, index) => (
-              <div key={index}>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  {field.label}
-                </label>
-                {field.type === 'textarea' ? (
-                  <textarea
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                    placeholder={field.placeholder}
-                    required={field.required}
-                  />
-                ) : (
-                  <input
-                    type={field.type}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                    placeholder={field.placeholder}
-                    required={field.required}
-                  />
-                )}
-              </div>
-            ))}
-            <button
-              type="submit"
-              className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-            >
-              Submit
-            </button>
-          </form>
-        </div>
-      );
-    case 'cta':
-      return (
-        <div className="mb-4 p-8 bg-blue-600 text-white rounded-lg text-center">
-          <h3 className="text-2xl font-bold mb-2">{component.content}</h3>
-          <button 
-            className="mt-4 px-6 py-2 bg-white text-blue-600 rounded-md hover:bg-gray-100"
-            data-cta={component.props?.ctaType || 'default'}
-            onClick={() => trackCTAClick(pageData.id)}
-          >
-            Get Started
-          </button>
-        </div>
-      );
-    case 'features':
-      return (
-        <div className="mb-4 grid grid-cols-1 md:grid-cols-3 gap-6">
-          {component.props?.features?.map((feature, index) => (
-            <div key={index} className="p-6 bg-white rounded-lg shadow">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-8 w-8 text-blue-600 mb-4"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d={feature.icon}
-                />
-              </svg>
-              <h3 className="text-xl font-semibold mb-2">{feature.title}</h3>
-              <p className="text-gray-600">{feature.description}</p>
-            </div>
-          ))}
-        </div>
-      );
-    case 'testimonial':
-      return (
-        <div className="mb-4 grid grid-cols-1 md:grid-cols-3 gap-6">
-          {component.props?.testimonials?.map((testimonial, index) => (
-            <div key={index} className="p-6 bg-white rounded-lg shadow">
-              <img
-                src={testimonial.avatar}
-                alt={testimonial.name}
-                className="w-16 h-16 rounded-full mx-auto mb-4"
-              />
-              <p className="text-gray-600 mb-2">{testimonial.content}</p>
-              <div className="text-center">
-                <p className="font-semibold">{testimonial.name}</p>
-                <p className="text-sm text-gray-500">{testimonial.role}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      );
-    case 'pricing':
-      return (
-        <div className="mb-4 grid grid-cols-1 md:grid-cols-3 gap-6">
-          {component.props?.pricingPlans?.map((plan, index) => (
-            <div
-              key={index}
-              className={`p-6 rounded-lg ${
-                plan.popular
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-white text-gray-900'
-              }`}
-            >
-              <h3 className="text-xl font-semibold mb-2">{plan.name}</h3>
-              <p className="text-3xl font-bold mb-4">{plan.price}</p>
-              <ul className="space-y-2 mb-6">
-                {plan.features.map((feature, i) => (
-                  <li key={i} className="flex items-center">
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      className="h-5 w-5 mr-2"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M5 13l4 4L19 7"
-                      />
-                    </svg>
-                    {feature}
-                  </li>
-                ))}
-              </ul>
-              <button 
-                className="w-full px-4 py-2 bg-white text-blue-600 rounded-md hover:bg-gray-100"
-                data-cta="purchase"
-                onClick={() => trackPurchase(pageData.id)}
-              >
-                {plan.ctaText}
-              </button>
-            </div>
-          ))}
-        </div>
-      );
-    default:
-      return null;
-  }
-};
 
 export default function RootPage() {
   const [pageData, setPageData] = useState<LandingPage | null>(null);
@@ -267,8 +81,49 @@ export default function RootPage() {
           
           if (!querySnapshot.empty) {
             const doc = querySnapshot.docs[0];
-            const data = doc.data() as LandingPage;
-            setPageData({ ...data, id: doc.id });
+            const data = doc.data();
+            
+            // Convert Timestamp to string
+            const analytics = data.analytics ? {
+              ...data.analytics,
+              lastVisit: data.analytics.lastVisit?.toDate().toISOString(),
+              visitHistory: data.analytics.visitHistory?.map((visit: { timestamp: { toDate: () => Date }; type: 'view' | 'conversion'; eventType?: string }) => ({
+                ...visit,
+                timestamp: visit.timestamp.toDate().toISOString()
+              }))
+            } : undefined;
+
+            setPageData({
+              ...data,
+              id: doc.id,
+              layout: data.layout || defaultLayout,
+              theme: {
+                typography: {
+                  bodyFont: data.theme?.typography?.bodyFont || 'Inter, sans-serif',
+                  headingFont: data.theme?.typography?.headingFont || 'Inter, sans-serif'
+                },
+                colors: {
+                  background: data.theme?.colors?.background || '#FFFFFF',
+                  text: data.theme?.colors?.text || '#1F2937'
+                },
+                spacing: {
+                  section: data.theme?.spacing?.section || '4rem'
+                }
+              },
+              analytics: data.analytics ? {
+                ...data.analytics,
+                lastVisit: data.analytics.lastVisit?.toDate().toISOString(),
+                visitHistory: data.analytics.visitHistory?.map((visit: any) => ({
+                  ...visit,
+                  timestamp: visit.timestamp.toDate().toISOString()
+                }))
+              } : {
+                totalVisits: 0,
+                uniqueVisitors: 0,
+                lastVisit: new Date().toISOString(),
+                visitHistory: []
+              }
+            } as LandingPage);
           } else {
             setError('Halaman tidak ditemukan');
           }
@@ -295,6 +150,42 @@ export default function RootPage() {
     fetchPosts();
   }, []);
 
+  const getBackgroundStyle = () => {
+    if (!pageData) return {};
+    const layout = pageData.layout;
+    if (layout.backgroundType === 'gradient') {
+      return {
+        background: `linear-gradient(${layout.gradientDirection}, ${layout.gradientStartColor}, ${layout.gradientEndColor})`
+      };
+    } else if (layout.backgroundType === 'image' && layout.backgroundImage) {
+      return {
+        backgroundImage: `url(${layout.backgroundImage})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat'
+      };
+    } else if (layout.backgroundType === 'pattern' && layout.patternType !== 'none') {
+      return {
+        backgroundColor: layout.backgroundColor,
+        backgroundImage: getPatternStyle(layout.patternType, layout.patternColor, layout.patternOpacity)
+      };
+    }
+    return {};
+  };
+
+  const getPatternStyle = (patternType: string, color: string, opacity: number) => {
+    switch (patternType) {
+      case 'dots':
+        return `radial-gradient(${color} ${opacity}%, transparent ${opacity}%)`;
+      case 'lines':
+        return `repeating-linear-gradient(45deg, ${color} ${opacity}%, transparent ${opacity}%)`;
+      case 'grid':
+        return `linear-gradient(${color} ${opacity}%, transparent ${opacity}%), linear-gradient(90deg, ${color} ${opacity}%, transparent ${opacity}%)`;
+      default:
+        return 'none';
+    }
+  };
+
   if (loading) {
     return <div>Loading...</div>;
   }
@@ -306,16 +197,49 @@ export default function RootPage() {
   if (pageData) {
     console.log('Rendering landing page with data:', pageData);
     return (
-      <div className="min-h-screen bg-white">
-        <ViewTracker slug={pageData.slug} userId={pageData.userId} />
-        <main>
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-            {/* Render konten landing page dari pageData */}
-            {pageData.content.map((component, index) => (
-              <div key={index}>
-                {renderComponent(component, pageData)}
+      <div 
+        className="min-h-screen flex flex-col"
+        style={{
+          ...getBackgroundStyle(),
+          fontFamily: pageData.theme.typography.bodyFont,
+          color: pageData.theme.colors.text,
+          backgroundColor: pageData.layout.backgroundType === 'color' ? pageData.layout.backgroundColor : pageData.theme.colors.background,
+          marginTop: 0,
+          paddingTop: 0
+        }}
+      >
+        {/* Main Content */}
+        <main className="flex-grow">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-0 pb-7">
+            {pageData.content && pageData.content.length > 0 ? (
+              pageData.content.map((component, index) => {
+                // Skip header and footer if they are not enabled in layout settings
+                if (component.type === 'header' && !pageData.layout.showHeader) return null;
+                if (component.type === 'footer' && !pageData.layout.showFooter) return null;
+
+                console.log('Rendering component:', component);
+                return (
+                  <div 
+                    key={index} 
+                    className="w-full"
+                    style={{
+                      marginBottom: pageData.theme.spacing.section
+                    }}
+                  >
+                    <div className="w-full">
+                      <ComponentRenderer 
+                        component={component} 
+                        pageData={pageData}
+                      />
+                    </div>
+                  </div>
+                );
+              })
+            ) : (
+              <div className="text-center py-12">
+                <p className="text-gray-500">No content available</p>
               </div>
-            ))}
+            )}
           </div>
         </main>
       </div>
